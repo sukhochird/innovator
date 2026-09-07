@@ -113,16 +113,67 @@ CADDY_EMAIL=admin@carq.autos
 
 ## 3. Deploy with Docker Compose
 
+Pick **one** mode depending on your server.
+
+### Mode A — Standalone (Caddy, recommended for dedicated server)
+
+Server has **no other website** on ports 80/443. Caddy handles HTTPS automatically.
+
+In `deploy/.env.production`:
+
+```env
+COMPOSE_PROFILES=caddy
+CADDY_EMAIL=admin@carq.autos
+```
+
+Deploy:
+
 ```bash
 cd ~/carq
 docker compose -f docker-compose.prod.yml --env-file deploy/.env.production up -d --build
 ```
 
-Check status:
+### Mode B — Shared server (existing Nginx/Apache on 80/443)
+
+Use this when **another website already uses port 80/443**. Caddy is **not** started; your existing Nginx proxies to CARQ.
+
+In `deploy/.env.production`, **remove or comment out** `COMPOSE_PROFILES=caddy`:
+
+```env
+# COMPOSE_PROFILES=caddy
+```
+
+Deploy (note the extra `docker-compose.shared.yml`):
+
+```bash
+cd ~/carq
+docker compose -f docker-compose.prod.yml -f docker-compose.shared.yml \
+  --env-file deploy/.env.production up -d --build
+```
+
+Add Nginx config and SSL:
+
+```bash
+sudo cp deploy/nginx/carq.autos.conf /etc/nginx/sites-available/carq.autos
+sudo ln -sf /etc/nginx/sites-available/carq.autos /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo certbot --nginx -d carq.autos -d www.carq.autos -d api.carq.autos
+sudo systemctl reload nginx
+```
+
+Remove a failed Caddy container from a previous attempt:
+
+```bash
+docker compose -f docker-compose.prod.yml rm -f caddy 2>/dev/null || true
+```
+
+### Check status
 
 ```bash
 docker compose -f docker-compose.prod.yml ps
-docker compose -f docker-compose.prod.yml logs -f caddy backend
+docker compose -f docker-compose.prod.yml logs -f backend frontend
+# Mode A only:
+docker compose -f docker-compose.prod.yml logs -f caddy
 ```
 
 ---
@@ -334,6 +385,21 @@ Then redeploy and point JT808 devices to `<server-ip>:18080`:
 docker compose -f docker-compose.prod.yml --env-file deploy/.env.production up -d
 ```
 
+### Port 80 or 443 already allocated (Caddy fails to start)
+
+**If another website runs on this server**, do not fight for port 80 — use **Mode B (shared Nginx)** in section 3 instead of stopping the other site.
+
+**If this server is CARQ-only**, stop the conflicting service:
+
+```bash
+sudo ss -tlnp | grep ':80 '
+sudo systemctl stop nginx
+sudo systemctl disable nginx
+docker compose -f docker-compose.prod.yml --env-file deploy/.env.production up -d caddy
+```
+
+See **Mode B — Shared server** for running CARQ alongside an existing website.
+
 ### CORS errors in browser
 
 Ensure `CORS_ALLOWED_ORIGINS` includes `https://carq.autos` (no trailing slash).
@@ -370,6 +436,7 @@ docker compose -f docker-compose.prod.yml up -d frontend
 | File | Purpose |
 |------|---------|
 | `docker-compose.prod.yml` | Production stack |
+| `docker-compose.shared.yml` | Shared server overlay (no Caddy, localhost ports) |
 | `deploy/.env.production.example` | Environment template |
-| `deploy/Caddyfile` | Reverse proxy + auto SSL |
-| `deploy/nginx/carq.autos.conf` | Nginx alternative |
+| `deploy/Caddyfile` | Reverse proxy + auto SSL (Mode A) |
+| `deploy/nginx/carq.autos.conf` | Nginx vhost for existing server (Mode B) |

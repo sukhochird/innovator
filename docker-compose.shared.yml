@@ -1,0 +1,16 @@
+# Use when another website already runs on ports 80/443 (Nginx, Apache, etc.)
+#
+# Deploy:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.shared.yml \
+#     --env-file deploy/.env.production up -d --build
+#
+# Then configure Nginx: deploy/nginx/carq.autos.conf
+
+services:
+  backend:
+    ports:
+      - "127.0.0.1:8000:8000"
+
+  frontend:
+    ports:
+      - "127.0.0.1:3000:3000"

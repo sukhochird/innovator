@@ -97,7 +97,7 @@ def build_vehicle_dashboard(vehicle_id: int):
     from apps.telemetry.models import VehicleTelemetry
     from apps.vehicles.serializers import AlertSerializer, DTCSerializer, TelemetrySerializer
 
-    recent = VehicleTelemetry.objects.filter(vehicle=vehicle).order_by("-timestamp")[:50]
+    recent = VehicleTelemetry.objects.filter(vehicle=vehicle).order_by("-timestamp")[:500]
     return {
         "vehicle": VehicleSerializer(vehicle).data,
         "current": state,

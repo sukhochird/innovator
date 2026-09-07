@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { useWebSocket } from "@/hooks/useWebSocket";
@@ -13,8 +13,23 @@ import {
   type HealthLevel,
 } from "@/lib/vehicle-utils";
 
+function appendRoutePoint(prev: TelemetryData[], point: TelemetryData): TelemetryData[] {
+  if (point.latitude == null || point.longitude == null) return prev;
+  const head = prev[0];
+  if (
+    head &&
+    head.latitude === point.latitude &&
+    head.longitude === point.longitude &&
+    head.timestamp === point.timestamp
+  ) {
+    return prev;
+  }
+  return [point, ...prev].slice(0, 500);
+}
+
 export function useVehicleDashboard(vehicleId: number) {
   const [telemetry, setTelemetry] = useState<TelemetryData | null>(null);
+  const [routeHistory, setRouteHistory] = useState<TelemetryData[]>([]);
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["vehicle-dashboard", vehicleId],
@@ -22,9 +37,16 @@ export function useVehicleDashboard(vehicleId: number) {
     enabled: !!vehicleId,
   });
 
+  useEffect(() => {
+    if (data?.telemetry_history?.length) {
+      setRouteHistory(data.telemetry_history);
+    }
+  }, [data?.telemetry_history]);
+
   const onWsMessage = useCallback((msg: { type: string; data?: TelemetryData }) => {
     if (msg.type === "telemetry.update" && msg.data) {
       setTelemetry(msg.data);
+      setRouteHistory((prev) => appendRoutePoint(prev, msg.data!));
     }
   }, []);
 
@@ -62,6 +84,7 @@ export function useVehicleDashboard(vehicleId: number) {
   return {
     data,
     current,
+    routeHistory,
     isLoading,
     isError,
     wsConnected,

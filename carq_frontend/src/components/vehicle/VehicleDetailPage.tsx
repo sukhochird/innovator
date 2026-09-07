@@ -26,6 +26,7 @@ export function VehicleDetailPage({ vehicleId }: VehicleDetailPageProps) {
   const {
     data,
     current,
+    routeHistory,
     isLoading,
     connectionState,
     vehicleStatus,
@@ -94,7 +95,7 @@ export function VehicleDetailPage({ vehicleId }: VehicleDetailPageProps) {
           <LiveMap
             vehicle={vehicle}
             current={current}
-            history={data.telemetry_history ?? []}
+            history={routeHistory.length ? routeHistory : (data.telemetry_history ?? [])}
             connectionState={connectionState}
             vehicleStatus={vehicleStatus}
           />

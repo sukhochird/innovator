@@ -22,9 +22,11 @@ import {
 import { TrackPlayback } from "@/components/fleet-command/TrackPlayback";
 import { VehicleMapPopup, VehicleTrackingPanel } from "@/components/fleet-command/VehiclePanels";
 import { FleetMap, type DrawMode, type FleetMapHandle } from "@/components/maps/FleetMap";
+import { MapViewControl } from "@/components/maps/MapViewControl";
 import { useFleetDashboard } from "@/hooks/useFleetDashboard";
+import { useMapView } from "@/hooks/useMapView";
 import { apiFetch } from "@/lib/api";
-import { coordsFromTelemetry } from "@/lib/map-utils";
+import { coordsFromTelemetry, normalizeRectangleBounds, vehicleCoords } from "@/lib/map-utils";
 import type {
   FleetMapMode,
   FleetStatusFilter,
@@ -50,6 +52,7 @@ export function FleetCommandCenter({
   onVehicleNavigate,
 }: FleetCommandCenterProps) {
   const mapRef = useRef<FleetMapHandle>(null);
+  const { mapView, setMapView } = useMapView();
   const {
     companyName,
     vehicles,
@@ -112,9 +115,29 @@ export function FleetCommandCenter({
   const handleSelect = useCallback(
     (id: number) => {
       setSelectedId(id);
-      mapRef.current?.focusVehicle(id);
+      const v = vehicles.find((x) => x.id === id);
+      const coords = v ? vehicleCoords(v) : null;
+      if (coords) {
+        mapRef.current?.focusAt(coords[0], coords[1]);
+      } else {
+        mapRef.current?.focusVehicle(id);
+      }
     },
-    [setSelectedId],
+    [vehicles, setSelectedId],
+  );
+
+  const handleDrawComplete = useCallback(
+    (geometry: Record<string, unknown>, type: DrawMode) => {
+      if (!type) return;
+      let geom = geometry as GeofenceGeometry;
+      if (type === "RECTANGLE" && geom.bounds?.length === 2) {
+        const [[a0, a1], [b0, b1]] = geom.bounds;
+        geom = { bounds: normalizeRectangleBounds([a0, a1], [b0, b1]) };
+      }
+      setPendingGeometry({ geometry: geom, type });
+      setDrawMode(null);
+    },
+    [],
   );
 
   const handleLoadHistory = useCallback(
@@ -137,15 +160,6 @@ export function FleetCommandCenter({
       }
     },
     [selectedId],
-  );
-
-  const handleDrawComplete = useCallback(
-    (geometry: Record<string, unknown>, type: DrawMode) => {
-      if (!type) return;
-      setPendingGeometry({ geometry: geometry as GeofenceGeometry, type });
-      setDrawMode(null);
-    },
-    [],
   );
 
   const handlePlaybackPosition = useCallback(
@@ -284,7 +298,8 @@ export function FleetCommandCenter({
           </div>
 
           <div className="relative min-h-0 flex-1">
-            <div className="absolute left-3 top-3 z-10 flex flex-wrap gap-1">
+            <div className="absolute left-3 top-3 z-10 flex flex-wrap items-center gap-2">
+              <MapViewControl value={mapView} onChange={setMapView} />
               <MapControlBtn icon={Crosshair} label="Fit Fleet" onClick={() => mapRef.current?.fitFleet()} />
               <MapControlBtn
                 icon={Layers}
@@ -304,9 +319,11 @@ export function FleetCommandCenter({
             <FleetMap
               ref={mapRef}
               vehicles={filteredVehicles}
+              allVehicles={vehicles}
               selectedId={selectedId}
               trackingId={trackingId}
               onSelect={handleSelect}
+              mapView={mapView}
               height="100%"
               trailCoords={trailCoords}
               historyCoords={historyCoords}

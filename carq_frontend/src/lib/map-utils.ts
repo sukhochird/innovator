@@ -1,6 +1,88 @@
+import type { Theme } from "@/lib/theme-store";
 import type { TelemetryData, Vehicle } from "@/lib/types";
 
 export const DEFAULT_MAP_CENTER: [number, number] = [106.917, 47.918];
+
+export const MAP_FOCUS_ZOOM = 18;
+export const MAP_TRACKING_ZOOM = 18;
+export const MAP_DEFAULT_ZOOM = 12;
+export const MAP_FIT_FLEET_MAX_ZOOM = 16;
+
+export type MapViewId = "standard" | "dark" | "satellite";
+
+export interface MapViewConfig {
+  id: MapViewId;
+  label: string;
+  tiles: string;
+  attribution: string;
+}
+
+export const MAP_VIEWS: MapViewConfig[] = [
+  {
+    id: "standard",
+    label: "Standard",
+    tiles: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: "© OpenStreetMap contributors",
+  },
+  {
+    id: "dark",
+    label: "Dark",
+    tiles: "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+    attribution: "© OpenStreetMap © CARTO",
+  },
+  {
+    id: "satellite",
+    label: "Satellite",
+    tiles: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "© Esri",
+  },
+];
+
+export function mapViewForTheme(theme: Theme): MapViewId {
+  return theme === "dark" ? "dark" : "standard";
+}
+
+export function getMapView(id: MapViewId): MapViewConfig {
+  return MAP_VIEWS.find((v) => v.id === id) ?? MAP_VIEWS[0];
+}
+
+export function createMapStyle(viewId: MapViewId) {
+  const view = getMapView(viewId);
+  return {
+    version: 8 as const,
+    sources: {
+      basemap: {
+        type: "raster" as const,
+        tiles: [view.tiles],
+        tileSize: 256,
+        attribution: view.attribution,
+      },
+    },
+    layers: [{ id: "basemap", type: "raster" as const, source: "basemap" }],
+  };
+}
+
+/** @deprecated use createMapStyle */
+export function createOsmMapStyle() {
+  return createMapStyle("standard");
+}
+
+export function normalizeRectangleBounds(
+  a: [number, number],
+  b: [number, number],
+): [[number, number], [number, number]] {
+  return [
+    [Math.min(a[0], b[0]), Math.min(a[1], b[1])],
+    [Math.max(a[0], b[0]), Math.max(a[1], b[1])],
+  ];
+}
+
+export function vehicleCoords(v: Vehicle): [number, number] | null {
+  const lat = toNum(v.current_telemetry?.latitude);
+  const lng = toNum(v.current_telemetry?.longitude);
+  if (lat == null || lng == null) return null;
+  return [lng, lat];
+}
 
 export function toNum(v: number | string | null | undefined): number | null {
   if (v == null || v === "") return null;
@@ -89,9 +171,8 @@ export function computeFleetBounds(
 ): [[number, number], [number, number]] | null {
   const coords: [number, number][] = [];
   for (const v of vehicles) {
-    const lat = toNum(v.current_telemetry?.latitude);
-    const lng = toNum(v.current_telemetry?.longitude);
-    if (lat != null && lng != null) coords.push([lng, lat]);
+    const c = vehicleCoords(v);
+    if (c) coords.push(c);
   }
   if (coords.length === 0) return null;
   if (coords.length === 1) return [coords[0], coords[0]];

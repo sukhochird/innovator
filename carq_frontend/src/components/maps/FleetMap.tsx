@@ -15,11 +15,19 @@ import {
   computeCoordsBounds,
   computeFleetBounds,
   coordsFromTelemetry,
+  createMapStyle,
   DEFAULT_MAP_CENTER,
   endMarkerHtml,
+  MAP_DEFAULT_ZOOM,
+  MAP_FIT_FLEET_MAX_ZOOM,
+  MAP_FOCUS_ZOOM,
+  MAP_TRACKING_ZOOM,
+  normalizeRectangleBounds,
   startMarkerHtml,
   toNum,
+  vehicleCoords,
   vehicleMarkerHtml,
+  type MapViewId,
 } from "@/lib/map-utils";
 import type { FleetMapMode, Geofence, TelemetryData, Vehicle } from "@/lib/types";
 
@@ -28,19 +36,24 @@ const TRAIL_LINE = "fleet-trail-line";
 const HISTORY_SOURCE = "fleet-history";
 const HISTORY_LINE = "fleet-history-line";
 const GEOFENCE_SOURCE = "geofence-zones";
+const DRAW_PREVIEW = "draw-preview";
+const DRAW_PREVIEW_LAYER = "draw-preview-layer";
 
 export type DrawMode = "CIRCLE" | "POLYGON" | "RECTANGLE" | null;
 
 export interface FleetMapHandle {
   fitFleet: () => void;
   focusVehicle: (vehicleId: number) => void;
+  focusAt: (lng: number, lat: number, zoom?: number) => void;
 }
 
 interface FleetMapProps {
   vehicles: Vehicle[];
+  allVehicles?: Vehicle[];
   selectedId?: number | null;
   trackingId?: number | null;
   onSelect?: (id: number) => void;
+  mapView?: MapViewId;
   height?: string;
   trailCoords?: [number, number][];
   historyCoords?: [number, number][];
@@ -107,9 +120,11 @@ export const FleetMap = memo(
   forwardRef<FleetMapHandle, FleetMapProps>(function FleetMap(
     {
       vehicles,
+      allVehicles,
       selectedId,
       trackingId,
       onSelect,
+      mapView = "standard",
       height = "100%",
       trailCoords = [],
       historyCoords = [],
@@ -134,51 +149,65 @@ export const FleetMap = memo(
     const userMovedMap = useRef(false);
     const drawPointsRef = useRef<[number, number][]>([]);
     const drawStartRef = useRef<[number, number] | null>(null);
+    const didInitialFit = useRef(false);
+    const prevMapView = useRef(mapView);
+    const focusPool = allVehicles ?? vehicles;
 
-    useImperativeHandle(ref, () => ({
-      fitFleet: () => {
-        const map = mapRef.current;
-        if (!map) return;
-        const bounds = computeFleetBounds(vehicles);
-        if (!bounds) return;
-        userMovedMap.current = false;
-        const [[minLng, minLat], [maxLng, maxLat]] = bounds;
-        if (minLng === maxLng && minLat === maxLat) {
-          map.flyTo({ center: [minLng, minLat], zoom: 14, duration: 800 });
-        } else {
-          map.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 800 });
-        }
-      },
-      focusVehicle: (vehicleId: number) => {
-        const map = mapRef.current;
-        const v = vehicles.find((x) => x.id === vehicleId);
-        if (!map || !v?.current_telemetry) return;
-        const lat = toNum(v.current_telemetry.latitude);
-        const lng = toNum(v.current_telemetry.longitude);
-        if (lat == null || lng == null) return;
-        userMovedMap.current = false;
-        map.flyTo({ center: [lng, lat], zoom: 15, duration: 800 });
-      },
-    }));
+    const flyToVehicle = useCallback((lng: number, lat: number, zoom = MAP_FOCUS_ZOOM) => {
+      const map = mapRef.current;
+      if (!map) return;
+      userMovedMap.current = false;
+      const go = () => {
+        map.flyTo({
+          center: [lng, lat],
+          zoom,
+          duration: 400,
+          essential: true,
+        });
+      };
+      if (map.isStyleLoaded()) go();
+      else map.once("idle", go);
+    }, []);
+
+    useImperativeHandle(
+      ref,
+      () => ({
+        fitFleet: () => {
+          const map = mapRef.current;
+          if (!map) return;
+          const bounds = computeFleetBounds(focusPool);
+          if (!bounds) return;
+          userMovedMap.current = false;
+          const [[minLng, minLat], [maxLng, maxLat]] = bounds;
+          if (minLng === maxLng && minLat === maxLat) {
+            flyToVehicle(minLng, minLat, MAP_FOCUS_ZOOM);
+          } else {
+            map.fitBounds(bounds, {
+              padding: 80,
+              maxZoom: MAP_FIT_FLEET_MAX_ZOOM,
+              duration: 700,
+            });
+          }
+        },
+        focusVehicle: (vehicleId: number) => {
+          const v = focusPool.find((x) => x.id === vehicleId);
+          const coords = v ? vehicleCoords(v) : null;
+          if (coords) flyToVehicle(coords[0], coords[1], MAP_FOCUS_ZOOM);
+        },
+        focusAt: (lng: number, lat: number, zoom?: number) => {
+          flyToVehicle(lng, lat, zoom ?? MAP_FOCUS_ZOOM);
+        },
+      }),
+      [focusPool, flyToVehicle],
+    );
 
     useEffect(() => {
       if (!containerRef.current || mapRef.current) return;
       const map = new Map({
         container: containerRef.current,
-        style: {
-          version: 8,
-          sources: {
-            osm: {
-              type: "raster",
-              tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-              tileSize: 256,
-              attribution: "© OpenStreetMap",
-            },
-          },
-          layers: [{ id: "osm", type: "raster", source: "osm" }],
-        },
+        style: createMapStyle(mapView),
         center: DEFAULT_MAP_CENTER,
-        zoom: 11,
+        zoom: MAP_DEFAULT_ZOOM,
         attributionControl: false,
       });
       map.addControl(new NavigationControl(), "top-right");
@@ -196,8 +225,45 @@ export const FleetMap = memo(
         map.remove();
         mapRef.current = null;
         setMapReady(false);
+        didInitialFit.current = false;
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- init once
     }, []);
+
+    useEffect(() => {
+      const map = mapRef.current;
+      if (!map || !mapReady || prevMapView.current === mapView) return;
+      prevMapView.current = mapView;
+      const center = map.getCenter();
+      const zoom = map.getZoom();
+      const bearing = map.getBearing();
+      map.setStyle(createMapStyle(mapView));
+      map.once("style.load", () => {
+        map.jumpTo({ center, zoom, bearing });
+      });
+    }, [mapView, mapReady]);
+
+    useEffect(() => {
+      const map = mapRef.current;
+      if (!map || !mapReady || didInitialFit.current || vehicles.length === 0) return;
+      const bounds = computeFleetBounds(vehicles);
+      if (!bounds) return;
+      didInitialFit.current = true;
+      const [[minLng, minLat], [maxLng, maxLat]] = bounds;
+      if (minLng === maxLng && minLat === maxLat) {
+        flyToVehicle(minLng, minLat, MAP_FOCUS_ZOOM);
+      } else {
+        map.fitBounds(bounds, { padding: 80, maxZoom: MAP_FIT_FLEET_MAX_ZOOM, duration: 900 });
+      }
+    }, [mapReady, vehicles, flyToVehicle]);
+
+    useEffect(() => {
+      if (!mapReady || !selectedId || followTracking || drawMode) return;
+      const v = focusPool.find((x) => x.id === selectedId);
+      const coords = v ? vehicleCoords(v) : null;
+      if (coords) flyToVehicle(coords[0], coords[1], MAP_FOCUS_ZOOM);
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- focus only when selection changes
+    }, [selectedId, mapReady, followTracking, drawMode, flyToVehicle]);
 
     const syncMarkers = useCallback(() => {
       const map = mapRef.current;
@@ -218,20 +284,24 @@ export const FleetMap = memo(
         const heading = tel?.heading ?? 0;
 
         let marker = markersRef.current.get(v.id);
+        const handleMarkerClick = (e: MouseEvent) => {
+          e.stopPropagation();
+          flyToVehicle(lng, lat, MAP_FOCUS_ZOOM);
+          onSelect?.(v.id);
+        };
+
         if (marker) {
           marker.setLngLat([lng, lat]);
           marker.setRotation(isTracking || isSelected ? heading : 0);
           const el = marker.getElement();
           el.innerHTML = vehicleMarkerHtml(v.plate_number, status, isSelected || isTracking);
           el.className = `fleet-marker ${isSelected ? "selected" : ""}`;
+          el.onclick = handleMarkerClick;
         } else {
           const el = document.createElement("div");
           el.className = `fleet-marker ${isSelected ? "selected" : ""}`;
           el.innerHTML = vehicleMarkerHtml(v.plate_number, status, isSelected);
-          el.onclick = (e) => {
-            e.stopPropagation();
-            onSelect?.(v.id);
-          };
+          el.onclick = handleMarkerClick;
           marker = new Marker({
             element: el,
             anchor: "bottom",
@@ -257,10 +327,14 @@ export const FleetMap = memo(
         const lat = toNum(v?.current_telemetry?.latitude);
         const lng = toNum(v?.current_telemetry?.longitude);
         if (lat != null && lng != null) {
-          map.easeTo({ center: [lng, lat], duration: 500 });
+          map.easeTo({
+            center: [lng, lat],
+            zoom: Math.max(map.getZoom(), MAP_TRACKING_ZOOM),
+            duration: 400,
+          });
         }
       }
-    }, [vehicles, selectedId, trackingId, onSelect, mapReady, mode, followTracking]);
+    }, [vehicles, selectedId, trackingId, onSelect, mapReady, mode, followTracking, flyToVehicle]);
 
     useEffect(() => {
       syncMarkers();
@@ -416,23 +490,59 @@ export const FleetMap = memo(
       const map = mapRef.current;
       if (!map || !mapReady || !drawMode) return;
 
+      map.doubleClickZoom.disable();
+      map.getCanvas().style.cursor = "crosshair";
+
+      const setPreview = (geojson: GeoJSON.Feature | GeoJSON.FeatureCollection | null) => {
+        if (!geojson) {
+          if (map.getLayer(DRAW_PREVIEW_LAYER)) map.removeLayer(DRAW_PREVIEW_LAYER);
+          if (map.getSource(DRAW_PREVIEW)) map.removeSource(DRAW_PREVIEW);
+          return;
+        }
+        const src = map.getSource(DRAW_PREVIEW) as GeoJSONSource | undefined;
+        if (src) {
+          src.setData(geojson);
+        } else {
+          map.addSource(DRAW_PREVIEW, { type: "geojson", data: geojson });
+          map.addLayer({
+            id: DRAW_PREVIEW_LAYER,
+            type: "fill",
+            source: DRAW_PREVIEW,
+            paint: { "fill-color": "#22d3ee", "fill-opacity": 0.2 },
+          });
+          map.addLayer({
+            id: `${DRAW_PREVIEW_LAYER}-line`,
+            type: "line",
+            source: DRAW_PREVIEW,
+            paint: { "line-color": "#22d3ee", "line-width": 2, "line-dasharray": [2, 2] },
+          });
+        }
+      };
+
       const onClick = (e: MapMouseEvent) => {
         const lngLat: [number, number] = [e.lngLat.lng, e.lngLat.lat];
         if (drawMode === "CIRCLE") {
           onDrawComplete?.({ center: lngLat, radius_m: 500 }, drawMode);
+          setPreview(null);
         } else if (drawMode === "RECTANGLE") {
           if (!drawStartRef.current) {
             drawStartRef.current = lngLat;
           } else {
-            const start = drawStartRef.current;
-            onDrawComplete?.(
-              { bounds: [start, lngLat] },
-              drawMode,
-            );
+            const bounds = normalizeRectangleBounds(drawStartRef.current, lngLat);
+            onDrawComplete?.({ bounds }, drawMode);
             drawStartRef.current = null;
+            setPreview(null);
           }
         } else if (drawMode === "POLYGON") {
           drawPointsRef.current.push(lngLat);
+          setPreview({
+            type: "Feature",
+            geometry: {
+              type: "Polygon",
+              coordinates: [[...drawPointsRef.current, drawPointsRef.current[0]]],
+            },
+            properties: {},
+          });
         }
       };
 
@@ -442,18 +552,37 @@ export const FleetMap = memo(
         if (drawPointsRef.current.length >= 3) {
           onDrawComplete?.({ coordinates: [...drawPointsRef.current] }, drawMode);
           drawPointsRef.current = [];
+          setPreview(null);
         }
       };
 
-      map.getCanvas().style.cursor = "crosshair";
+      const onMove = (e: MapMouseEvent) => {
+        if (drawMode === "RECTANGLE" && drawStartRef.current) {
+          const bounds = normalizeRectangleBounds(drawStartRef.current, [e.lngLat.lng, e.lngLat.lat]);
+          const [[swLng, swLat], [neLng, neLat]] = bounds;
+          setPreview({
+            type: "Feature",
+            geometry: {
+              type: "Polygon",
+              coordinates: [[[swLng, swLat], [neLng, swLat], [neLng, neLat], [swLng, neLat], [swLng, swLat]]],
+            },
+            properties: {},
+          });
+        }
+      };
+
       map.on("click", onClick);
       map.on("dblclick", onDblClick);
+      map.on("mousemove", onMove);
       return () => {
+        map.doubleClickZoom.enable();
         map.getCanvas().style.cursor = "";
         map.off("click", onClick);
         map.off("dblclick", onDblClick);
+        map.off("mousemove", onMove);
         drawPointsRef.current = [];
         drawStartRef.current = null;
+        setPreview(null);
       };
     }, [drawMode, mapReady, onDrawComplete]);
 

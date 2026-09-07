@@ -183,6 +183,57 @@ export function generateVehiclesInsight(vehicles: Vehicle[]): AiInsight {
   };
 }
 
+export function generateOperationsInsight(input: {
+  fleet: { total: number; moving: number; offline: number; alert: number };
+  alerts: { critical: number; warning: number };
+  dtc: { active: number };
+}): AiInsight {
+  const { fleet, alerts, dtc } = input;
+
+  if (fleet.total === 0) {
+    return {
+      headline: "Welcome to CARQ",
+      body: "Add vehicles and devices to start monitoring. Your operations dashboard will show alerts, diagnostics, and fleet health here.",
+      priority: "info",
+      tags: ["onboarding"],
+    };
+  }
+
+  if (alerts.critical > 0) {
+    return {
+      headline: `${alerts.critical} critical alert${alerts.critical > 1 ? "s" : ""} require action`,
+      body: `Review the alerts feed immediately. ${fleet.moving} vehicles moving, ${fleet.offline} offline. Open Fleet Map for live positions.`,
+      priority: "critical",
+      tags: ["alerts", "urgent"],
+    };
+  }
+
+  if (dtc.active > 0) {
+    return {
+      headline: `${dtc.active} active diagnostic code${dtc.active > 1 ? "s" : ""}`,
+      body: `Schedule workshop checks for affected vehicles. ${alerts.warning} warning-level alert${alerts.warning !== 1 ? "s" : ""} also active.`,
+      priority: "action",
+      tags: ["dtc", "maintenance"],
+    };
+  }
+
+  if (fleet.offline > fleet.total * 0.3) {
+    return {
+      headline: "Connectivity needs attention",
+      body: `${fleet.offline} of ${fleet.total} vehicles offline. Check device assignments and JT808 connectivity before peak hours.`,
+      priority: "watch",
+      tags: ["offline", "devices"],
+    };
+  }
+
+  return {
+    headline: `Today: ${fleet.moving} active · ${fleet.total} total`,
+    body: `Fleet is ${alerts.critical + alerts.warning === 0 ? "clear of critical issues" : "mostly stable"}. Use Fleet Map for live tracking or review vehicle health below.`,
+    priority: "info",
+    tags: ["overview", "healthy"],
+  };
+}
+
 function severityRank(s: string): number {
   if (s === "CRITICAL") return 3;
   if (s === "WARNING") return 2;

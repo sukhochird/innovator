@@ -13,9 +13,16 @@ import {
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import type { TelemetryData, Vehicle } from "@/lib/types";
+import {
+  createMapStyle,
+  DEFAULT_MAP_CENTER,
+  MAP_FOCUS_ZOOM,
+} from "@/lib/map-utils";
+import { useMapView } from "@/hooks/useMapView";
 import { cn } from "@/lib/utils";
 
 import { ConnectionIndicator } from "./VehicleStatusBadge";
+import { MapViewControl } from "@/components/maps/MapViewControl";
 import { VehicleMapOverlay } from "./VehicleMapOverlay";
 
 const TRAIL_SOURCE = "vehicle-trail";
@@ -23,7 +30,7 @@ const TRAIL_GLOW = "vehicle-trail-glow";
 const TRAIL_LINE = "vehicle-trail-line";
 const TRAIL_POINTS_SOURCE = "vehicle-trail-points-src";
 const TRAIL_POINTS_LAYER = "vehicle-trail-points-layer";
-const DEFAULT_CENTER: [number, number] = [106.917, 47.918];
+const DEFAULT_CENTER = DEFAULT_MAP_CENTER;
 
 interface LiveMapProps {
   vehicle: Vehicle;
@@ -75,6 +82,7 @@ export const LiveMap = memo(function LiveMap({
   vehicleStatus,
   height = "420px",
 }: LiveMapProps) {
+  const { mapView, setMapView } = useMapView();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const markerRef = useRef<HTMLDivElement | null>(null);
@@ -82,6 +90,17 @@ export const LiveMap = memo(function LiveMap({
   const startMarkerRef = useRef<Marker | null>(null);
   const [mapReady, setMapReady] = useState(false);
   const didFitBounds = useRef(false);
+  const prevMapView = useRef(mapView);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || prevMapView.current === mapView) return;
+    prevMapView.current = mapView;
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    map.setStyle(createMapStyle(mapView));
+    map.once("style.load", () => map.jumpTo({ center, zoom }));
+  }, [mapView, mapReady]);
 
   const routeCoords = useMemo(
     () => buildRouteCoords(history, current),
@@ -105,20 +124,9 @@ export const LiveMap = memo(function LiveMap({
 
     const map = new Map({
       container: containerRef.current,
-      style: {
-        version: 8,
-        sources: {
-          osm: {
-            type: "raster",
-            tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-            tileSize: 256,
-            attribution: "© OpenStreetMap",
-          },
-        },
-        layers: [{ id: "osm", type: "raster", source: "osm" }],
-      },
+      style: createMapStyle(mapView),
       center: DEFAULT_CENTER,
-      zoom: 14,
+      zoom: MAP_FOCUS_ZOOM - 1,
       attributionControl: false,
     });
 
@@ -256,11 +264,11 @@ export const LiveMap = memo(function LiveMap({
             [Math.min(...lngs), Math.min(...lats)],
             [Math.max(...lngs), Math.max(...lats)],
           ];
-          map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 800 });
+          map.fitBounds(bounds, { padding: 60, maxZoom: MAP_FOCUS_ZOOM, duration: 800 });
           didFitBounds.current = true;
         }
       } else if (markerPos && !didFitBounds.current) {
-        map.flyTo({ center: markerPos, zoom: 15, duration: 600 });
+        map.flyTo({ center: markerPos, zoom: MAP_FOCUS_ZOOM, duration: 600 });
         didFitBounds.current = true;
       }
     };
@@ -275,7 +283,7 @@ export const LiveMap = memo(function LiveMap({
   const centerVehicle = useCallback(() => {
     const map = mapRef.current;
     if (!map || !markerPos || !map.isStyleLoaded()) return;
-    map.flyTo({ center: markerPos, zoom: 15, duration: 800 });
+    map.flyTo({ center: markerPos, zoom: MAP_FOCUS_ZOOM, duration: 600 });
   }, [markerPos]);
 
   const fitRoute = useCallback(() => {
@@ -288,7 +296,7 @@ export const LiveMap = memo(function LiveMap({
         [Math.min(...lngs), Math.min(...lats)],
         [Math.max(...lngs), Math.max(...lats)],
       ],
-      { padding: 60, maxZoom: 15, duration: 800 },
+      { padding: 60, maxZoom: MAP_FOCUS_ZOOM, duration: 800 },
     );
   }, [routeCoords]);
 
@@ -313,7 +321,8 @@ export const LiveMap = memo(function LiveMap({
             )}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <MapViewControl value={mapView} onChange={setMapView} />
           {routePointCount >= 2 && (
             <button
               type="button"

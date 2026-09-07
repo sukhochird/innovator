@@ -65,7 +65,7 @@ const ROLE_CONFIG = {
     accentBg: "bg-cyan-500/10",
     accentBorder: "border-cyan-500/25",
     badge: "Fleet",
-    subtitle: "Fleet command center",
+    subtitle: "Operations & fleet management",
     logoIcon: Map,
   },
   DRIVER: {

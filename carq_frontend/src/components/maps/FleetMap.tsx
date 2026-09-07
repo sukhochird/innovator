@@ -5,6 +5,7 @@ import {
   Map,
   Marker,
   NavigationControl,
+  AttributionControl,
   type GeoJSONSource,
   type Map as MapInstance,
   type MapMouseEvent,
@@ -211,6 +212,7 @@ export const FleetMap = memo(
         attributionControl: false,
       });
       map.addControl(new NavigationControl(), "top-right");
+      map.addControl(new AttributionControl({ compact: true }), "bottom-right");
       map.on("dragstart", () => {
         userMovedMap.current = true;
       });

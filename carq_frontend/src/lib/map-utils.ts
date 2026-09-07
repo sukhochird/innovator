@@ -21,8 +21,9 @@ export const MAP_VIEWS: MapViewConfig[] = [
   {
     id: "standard",
     label: "Standard",
-    tiles: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution: "© OpenStreetMap contributors",
+    // Carto CDN — free, no API key, production-friendly (OSM data)
+    tiles: "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+    attribution: "© OpenStreetMap © CARTO",
   },
   {
     id: "dark",
@@ -33,6 +34,7 @@ export const MAP_VIEWS: MapViewConfig[] = [
   {
     id: "satellite",
     label: "Satellite",
+    // Esri World Imagery — free for web use, no API key
     tiles: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     attribution: "© Esri",
   },
@@ -55,6 +57,7 @@ export function createMapStyle(viewId: MapViewId) {
         type: "raster" as const,
         tiles: [view.tiles],
         tileSize: 256,
+        maxzoom: 19,
         attribution: view.attribution,
       },
     },

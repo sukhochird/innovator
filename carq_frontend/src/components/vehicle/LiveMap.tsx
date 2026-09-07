@@ -6,6 +6,7 @@ import {
   Map,
   Marker,
   NavigationControl,
+  AttributionControl,
   type GeoJSONSource,
   type LngLatBoundsLike,
   type Map as MapInstance,
@@ -131,6 +132,7 @@ export const LiveMap = memo(function LiveMap({
     });
 
     map.addControl(new NavigationControl(), "top-right");
+    map.addControl(new AttributionControl({ compact: true }), "bottom-right");
     mapRef.current = map;
 
     const onLoad = () => setMapReady(true);

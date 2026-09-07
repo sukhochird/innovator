@@ -1,3 +1,5 @@
+import type { StyleSpecification } from "maplibre-gl";
+
 import type { Theme } from "@/lib/theme-store";
 import type { TelemetryData, Vehicle } from "@/lib/types";
 
@@ -13,28 +15,29 @@ export type MapViewId = "standard" | "dark" | "satellite";
 export interface MapViewConfig {
   id: MapViewId;
   label: string;
-  tiles: string;
   attribution: string;
+  /** Remote MapLibre style JSON — no API key */
+  styleUrl?: string;
+  /** Inline raster tiles — no API key */
+  tiles?: string;
 }
 
 export const MAP_VIEWS: MapViewConfig[] = [
   {
     id: "standard",
     label: "Standard",
-    // Carto CDN — free, no API key, production-friendly (OSM data)
-    tiles: "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-    attribution: "© OpenStreetMap © CARTO",
+    styleUrl: "https://tiles.openfreemap.org/styles/liberty",
+    attribution: "© OpenFreeMap © OpenStreetMap",
   },
   {
     id: "dark",
     label: "Dark",
-    tiles: "https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-    attribution: "© OpenStreetMap © CARTO",
+    styleUrl: "https://tiles.openfreemap.org/styles/dark",
+    attribution: "© OpenFreeMap © OpenStreetMap",
   },
   {
     id: "satellite",
     label: "Satellite",
-    // Esri World Imagery — free for web use, no API key
     tiles: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     attribution: "© Esri",
   },
@@ -48,26 +51,38 @@ export function getMapView(id: MapViewId): MapViewConfig {
   return MAP_VIEWS.find((v) => v.id === id) ?? MAP_VIEWS[0];
 }
 
-export function createMapStyle(viewId: MapViewId) {
-  const view = getMapView(viewId);
+function createRasterStyle(tiles: string, attribution: string): StyleSpecification {
   return {
-    version: 8 as const,
+    version: 8,
     sources: {
       basemap: {
-        type: "raster" as const,
-        tiles: [view.tiles],
+        type: "raster",
+        tiles: [tiles],
         tileSize: 256,
         maxzoom: 19,
-        attribution: view.attribution,
+        attribution,
       },
     },
-    layers: [{ id: "basemap", type: "raster" as const, source: "basemap" }],
+    layers: [{ id: "basemap", type: "raster", source: "basemap" }],
   };
 }
 
-/** @deprecated use createMapStyle */
+/** MapLibre style URL or inline raster style — all providers are key-free. */
+export function getMapStyle(viewId: MapViewId): string | StyleSpecification {
+  const view = getMapView(viewId);
+  if (view.styleUrl) return view.styleUrl;
+  if (view.tiles) return createRasterStyle(view.tiles, view.attribution);
+  return MAP_VIEWS[0].styleUrl!;
+}
+
+/** @deprecated use getMapStyle */
+export function createMapStyle(viewId: MapViewId) {
+  return getMapStyle(viewId);
+}
+
+/** @deprecated use getMapStyle */
 export function createOsmMapStyle() {
-  return createMapStyle("standard");
+  return getMapStyle("standard");
 }
 
 export function normalizeRectangleBounds(

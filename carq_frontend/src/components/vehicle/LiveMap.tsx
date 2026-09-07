@@ -15,7 +15,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 import type { TelemetryData, Vehicle } from "@/lib/types";
 import {
-  createMapStyle,
+  getMapStyle,
   DEFAULT_MAP_CENTER,
   MAP_FOCUS_ZOOM,
 } from "@/lib/map-utils";
@@ -99,7 +99,7 @@ export const LiveMap = memo(function LiveMap({
     prevMapView.current = mapView;
     const center = map.getCenter();
     const zoom = map.getZoom();
-    map.setStyle(createMapStyle(mapView));
+    map.setStyle(getMapStyle(mapView));
     map.once("style.load", () => map.jumpTo({ center, zoom }));
   }, [mapView, mapReady]);
 
@@ -125,7 +125,7 @@ export const LiveMap = memo(function LiveMap({
 
     const map = new Map({
       container: containerRef.current,
-      style: createMapStyle(mapView),
+      style: getMapStyle(mapView),
       center: DEFAULT_CENTER,
       zoom: MAP_FOCUS_ZOOM - 1,
       attributionControl: false,

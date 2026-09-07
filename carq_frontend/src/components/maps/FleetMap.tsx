@@ -16,7 +16,7 @@ import {
   computeCoordsBounds,
   computeFleetBounds,
   coordsFromTelemetry,
-  createMapStyle,
+  getMapStyle,
   DEFAULT_MAP_CENTER,
   endMarkerHtml,
   MAP_DEFAULT_ZOOM,
@@ -147,6 +147,7 @@ export const FleetMap = memo(
     const startMarkerRef = useRef<Marker | null>(null);
     const endMarkerRef = useRef<Marker | null>(null);
     const [mapReady, setMapReady] = useState(false);
+    const [styleEpoch, setStyleEpoch] = useState(0);
     const userMovedMap = useRef(false);
     const drawPointsRef = useRef<[number, number][]>([]);
     const drawStartRef = useRef<[number, number] | null>(null);
@@ -206,7 +207,7 @@ export const FleetMap = memo(
       if (!containerRef.current || mapRef.current) return;
       const map = new Map({
         container: containerRef.current,
-        style: createMapStyle(mapView),
+        style: getMapStyle(mapView),
         center: DEFAULT_MAP_CENTER,
         zoom: MAP_DEFAULT_ZOOM,
         attributionControl: false,
@@ -239,9 +240,10 @@ export const FleetMap = memo(
       const center = map.getCenter();
       const zoom = map.getZoom();
       const bearing = map.getBearing();
-      map.setStyle(createMapStyle(mapView));
+      map.setStyle(getMapStyle(mapView));
       map.once("style.load", () => {
         map.jumpTo({ center, zoom, bearing });
+        setStyleEpoch((n) => n + 1);
       });
     }, [mapView, mapReady]);
 
@@ -376,7 +378,7 @@ export const FleetMap = memo(
         map.removeLayer(TRAIL_LINE);
         map.removeSource(TRAIL_SOURCE);
       }
-    }, [trailCoords, mapReady, mode, syncLine]);
+    }, [trailCoords, mapReady, mode, syncLine, styleEpoch]);
 
     useEffect(() => {
       const map = mapRef.current;
@@ -415,7 +417,7 @@ export const FleetMap = memo(
         startMarkerRef.current = null;
         endMarkerRef.current = null;
       }
-    }, [historyCoords, mapReady, mode, syncLine]);
+    }, [historyCoords, mapReady, mode, syncLine, styleEpoch]);
 
     useEffect(() => {
       const map = mapRef.current;
@@ -486,7 +488,7 @@ export const FleetMap = memo(
           },
         });
       }
-    }, [geofences, showGeofences, mapReady]);
+    }, [geofences, showGeofences, mapReady, styleEpoch]);
 
     useEffect(() => {
       const map = mapRef.current;

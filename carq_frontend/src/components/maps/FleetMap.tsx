@@ -373,8 +373,9 @@ export const FleetMap = memo(
     useEffect(() => {
       const map = mapRef.current;
       if (!map || !mapReady) return;
+      const list = Array.isArray(geofences) ? geofences : [];
       const features = showGeofences
-        ? geofences.filter((g) => g.is_active).map(geofenceToFeature).filter(Boolean)
+        ? list.filter((g) => g.is_active).map(geofenceToFeature).filter(Boolean)
         : [];
       const collection = {
         type: "FeatureCollection" as const,

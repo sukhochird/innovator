@@ -6,7 +6,7 @@ import { Loader2, MapPin, Trash2 } from "lucide-react";
 
 import type { DrawMode } from "@/components/maps/FleetMap";
 import { apiFetch } from "@/lib/api";
-import type { Geofence, GeofenceGeometry, GeofenceType, Vehicle } from "@/lib/types";
+import type { Geofence, GeofenceGeometry, GeofenceType, PaginatedResponse, Vehicle } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface GeofenceManagerProps {
@@ -33,11 +33,7 @@ export const GeofenceManager = memo(function GeofenceManager({
   const [assignAll, setAssignAll] = useState(true);
   const [selectedVehicles, setSelectedVehicles] = useState<number[]>([]);
 
-  const { data: geofences = [], isLoading } = useQuery({
-    queryKey: ["geofences"],
-    queryFn: () => apiFetch<Geofence[]>("/api/geofences/"),
-    enabled: open,
-  });
+  const { data: geofences = [], isLoading } = useGeofencesQuery(open);
 
   const createMutation = useMutation({
     mutationFn: (body: Record<string, unknown>) =>
@@ -216,7 +212,17 @@ export const GeofenceManager = memo(function GeofenceManager({
 export function useGeofencesQuery(enabled = true) {
   return useQuery({
     queryKey: ["geofences"],
-    queryFn: () => apiFetch<Geofence[]>("/api/geofences/"),
+    queryFn: async () => {
+      try {
+        const data = await apiFetch<PaginatedResponse<Geofence> | Geofence[]>(
+          "/api/geofences/?page_size=200",
+        );
+        return Array.isArray(data) ? data : (data.results ?? []);
+      } catch {
+        return [];
+      }
+    },
     enabled,
+    retry: false,
   });
 }

@@ -86,6 +86,7 @@ export function FleetCommandCenter({
   const [playbackHeading, setPlaybackHeading] = useState(0);
 
   const { data: geofences = [] } = useGeofencesQuery(true);
+  const geofenceList = Array.isArray(geofences) ? geofences : [];
 
   const filteredVehicles = useMemo(() => {
     let list = vehicles;
@@ -311,7 +312,7 @@ export function FleetCommandCenter({
               historyCoords={historyCoords}
               playbackCoord={playbackCoord}
               playbackHeading={playbackHeading}
-              geofences={geofences}
+              geofences={geofenceList}
               showGeofences={showGeofences}
               mode={mapMode}
               drawMode={drawMode}

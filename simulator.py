@@ -155,33 +155,34 @@ def generate_vehicle_route():
 import threading
 
 SIMULATED_FLEET = [
+    # Must match seed_demo.py JT808_TERMINAL_PHONES → CARQ-OBD-00000N → vehicle
     {
         "phone": "013800138000",
-        "plate": "2388 УНР",
-        "model": "Lexus CT200h",
+        "plate": "UBX-1234",
+        "model": "Toyota Prius",
         "offset_index": 0,
-        "initial_mileage": 1245.0,
+        "initial_mileage": 12450.0,
         "dtc_trigger_seq": 5,
-        "dtc_list": ['P0300', 'P0171']
+        "dtc_list": ["P0300", "P0171"],
     },
     {
         "phone": "013800138001",
-        "plate": "1102 УБА",
-        "model": "Hyundai Porter II",
-        "offset_index": 35,
-        "initial_mileage": 4820.5,
+        "plate": "UBX-5678",
+        "model": "Honda Civic",
+        "offset_index": 40,
+        "initial_mileage": 12550.0,
         "dtc_trigger_seq": 8,
-        "dtc_list": ['P0420']
+        "dtc_list": ["P0420"],
     },
     {
         "phone": "013800138002",
-        "plate": "5599 УБН",
-        "model": "Toyota HiAce",
-        "offset_index": 70,
-        "initial_mileage": 8910.2,
+        "plate": "UBX-9012",
+        "model": "Ford Transit",
+        "offset_index": 80,
+        "initial_mileage": 12650.0,
         "dtc_trigger_seq": 999,
-        "dtc_list": []
-    }
+        "dtc_list": [],
+    },
 ]
 
 def simulate_vehicle(v_info, route_points):

@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
 import { StatCard } from "@/components/dashboard/StatCard";
 import { FleetTable } from "@/components/fleet/FleetTable";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { FleetMap } from "@/components/maps/FleetMap";
-import { useCompanyName } from "@/hooks/useCompanyName";
+import { useCompanyName, DASHBOARD_QUERY_KEY } from "@/hooks/useCompanyName";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { apiFetch } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth-store";
@@ -18,62 +18,62 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const companyName = useCompanyName();
   const router = useRouter();
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [fleet, setFleet] = useState<CompanyDashboard["fleet"] | null>(null);
-  const [alerts, setAlerts] = useState({ critical: 0, warning: 0 });
-  const [dtc, setDtc] = useState({ active: 0 });
+  const queryClient = useQueryClient();
 
-  const endpoint =
-    user?.role === "SUPER_ADMIN"
-      ? "/api/dashboard/admin/"
-      : user?.role === "DRIVER"
-        ? "/api/dashboard/driver/"
-        : "/api/dashboard/company/";
-
-  const { isLoading } = useQuery({
-    queryKey: ["dashboard", user?.role],
-    queryFn: () => apiFetch<CompanyDashboard>(endpoint),
-    enabled: !!user && user.role !== "SUPER_ADMIN" && user.role !== "DRIVER",
-    select: (data) => data,
-  });
-
-  useQuery({
-    queryKey: ["dashboard-init", user?.role],
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: [DASHBOARD_QUERY_KEY, user?.role],
     queryFn: async () => {
       if (user?.role === "SUPER_ADMIN") {
-        router.push("/companies");
+        router.replace("/companies");
         return null;
       }
       if (user?.role === "DRIVER") {
-        const data = await apiFetch<{ vehicle: Vehicle | null }>("/api/dashboard/driver/");
-        if (data.vehicle) router.push(`/vehicle/${data.vehicle.id}`);
-        return data;
+        const driverData = await apiFetch<{ vehicle: Vehicle | null }>("/api/dashboard/driver/");
+        if (driverData.vehicle) router.replace(`/vehicle/${driverData.vehicle.id}`);
+        return null;
       }
-      const data = await apiFetch<CompanyDashboard>("/api/dashboard/company/");
-      setVehicles(data.vehicles);
-      setFleet(data.fleet);
-      setAlerts(data.alerts);
-      setDtc(data.dtc);
-      return data;
+      return apiFetch<CompanyDashboard>("/api/dashboard/company/");
     },
     enabled: !!user,
   });
 
-  const onWsMessage = useCallback((msg: { type: string; data?: Record<string, unknown>; vehicle_id?: number }) => {
-    if (msg.type !== "telemetry.update" || !msg.data) return;
-    const vid = msg.vehicle_id as number;
-    setVehicles((prev) =>
-      prev.map((v) =>
-        v.id === vid
-          ? { ...v, current_telemetry: msg.data as Vehicle["current_telemetry"], status: (msg.data?.status as string) || v.status }
-          : v,
-      ),
-    );
-  }, []);
+  const vehicles = data?.vehicles ?? [];
+  const fleet = data?.fleet ?? null;
+  const alerts = data?.alerts ?? { critical: 0, warning: 0 };
+  const dtc = data?.dtc ?? { active: 0 };
+
+  const onWsMessage = useCallback(
+    (msg: { type: string; data?: Record<string, unknown>; vehicle_id?: number }) => {
+      if (msg.type !== "telemetry.update" || !msg.data) return;
+      const vid = msg.vehicle_id as number;
+
+      queryClient.setQueryData<CompanyDashboard | null>(
+        [DASHBOARD_QUERY_KEY, user?.role],
+        (prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            vehicles: prev.vehicles.map((v) =>
+              v.id === vid
+                ? {
+                    ...v,
+                    current_telemetry: msg.data as Vehicle["current_telemetry"],
+                    status: (msg.data?.status as string) || v.status,
+                  }
+                : v,
+            ),
+          };
+        },
+      );
+    },
+    [queryClient, user?.role],
+  );
 
   useWebSocket(user?.role === "COMPANY_ADMIN" ? "/ws/company/fleet/" : null, onWsMessage);
 
-  if (isLoading && !fleet) {
+  const showLoading = (isLoading || isFetching) && !data;
+
+  if (showLoading) {
     return (
       <DashboardLayout>
         <div className="grid animate-pulse gap-4">
@@ -124,11 +124,15 @@ export default function DashboardPage() {
                 >
                   <div>
                     <p className="font-medium text-[var(--dash-text)]">{v.plate_number}</p>
-                    <p className="text-xs text-[var(--dash-muted)]">{v.make} {v.model}</p>
+                    <p className="text-xs text-[var(--dash-muted)]">
+                      {v.make} {v.model}
+                    </p>
                   </div>
                   <div className="text-right">
                     <p className="font-mono text-lg tabular-nums text-emerald-400">
-                      {v.current_telemetry?.speed != null ? Math.round(v.current_telemetry.speed) : "—"}
+                      {v.current_telemetry?.speed != null
+                        ? Math.round(v.current_telemetry.speed)
+                        : "—"}
                     </p>
                     <p className="text-xs text-[var(--dash-muted)]">km/h</p>
                   </div>

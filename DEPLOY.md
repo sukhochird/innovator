@@ -94,10 +94,12 @@ DJANGO_SECRET_KEY=<openssl rand -hex 32 үр дүн>
 POSTGRES_PASSWORD=<хүчтэй нууц үг>
 DATABASE_URL=postgres://carq:<ижил password>@postgres:5432/carq
 CADDY_EMAIL=admin@carq.autos
-COMPOSE_PROFILES=caddy
+COMPOSE_PROFILES=caddy,demo
+SEED_DEMO=true
 ```
 
 > `POSTGRES_PASSWORD` болон `DATABASE_URL` доторх password **яг ижил** байх ёстой.
+> `demo` profile — JT808 simulator ажиллуулж demo машинууд live telemetry илгээнэ.
 
 Бусад утгууд (`NEXT_PUBLIC_*`, `ALLOWED_HOSTS`, `CORS_*`) example файл дээр carq.autos-д тохирсон байна.
 
@@ -118,27 +120,61 @@ chmod +x deploy/carq.sh
 ```bash
 ./deploy/carq.sh ps
 ./deploy/carq.sh logs -f caddy backend
+./deploy/carq.sh logs -f jt808-simulator
 ```
 
 `Ctrl+C` — log-оос гарна.
 
 ---
 
-## 5. Admin user үүсгэх
+## 5. Demo fleet & live telemetry
+
+`SEED_DEMO=true` + `COMPOSE_PROFILES=caddy,demo` байвал:
+
+- Backend эхлэхэд `seed_demo` — demo company, машинууд, device-үүд үүснэ
+- `jt808-simulator` container 3 demo машинд JT808 telemetry илгээнэ
+
+| JT808 Phone | Device | Vehicle |
+|-------------|--------|---------|
+| 013800138000 | CARQ-OBD-000001 | UBX-1234 Toyota Prius |
+| 013800138001 | CARQ-OBD-000002 | UBX-5678 Honda Civic |
+| 013800138002 | CARQ-OBD-000003 | UBX-9012 Ford Transit |
+
+**Demo login:**
+- `company@carq.local` / `company123`
+- `admin@carq.local` / `admin123`
+
+Simulator log шалгах:
+```bash
+./deploy/carq.sh logs -f jt808-simulator
+```
+
+Demo унтраах (simulator зогсоох):
+```env
+COMPOSE_PROFILES=caddy
+```
+```bash
+./deploy/carq.sh up -d
+```
+
+---
+
+## 6. Admin user үүсгэх (optional)
+
+Custom admin хэрэгтэй бол:
 
 ```bash
 ./deploy/carq.sh exec backend python manage.py createsuperuser
 ```
 
-Demo өгөгдөл (зөвхөн test/staging):
-
+Demo seed дахин ажиллуулах:
 ```bash
 ./deploy/carq.sh exec backend python manage.py seed_demo
 ```
 
 ---
 
-## 6. Шалгах
+## 7. Шалгах
 
 ```bash
 curl -I https://carq.autos

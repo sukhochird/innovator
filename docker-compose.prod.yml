@@ -30,6 +30,7 @@ services:
     restart: unless-stopped
     command: >
       sh -c "python manage.py migrate &&
+             if [ \"$$SEED_DEMO\" = \"true\" ]; then python manage.py seed_demo; fi &&
              python manage.py run_jt808_server --port 8080 &
              daphne -b 0.0.0.0 -p 8000 config.asgi:application"
     expose:
@@ -46,6 +47,7 @@ services:
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://carq.autos}
       JWT_ACCESS_LIFETIME: ${JWT_ACCESS_LIFETIME:-60}
       JWT_REFRESH_LIFETIME: ${JWT_REFRESH_LIFETIME:-1440}
+      SEED_DEMO: ${SEED_DEMO:-false}
     depends_on:
       postgres:
         condition: service_healthy
@@ -82,6 +84,22 @@ services:
     depends_on:
       - frontend
       - backend
+
+  jt808-simulator:
+    profiles: ["demo"]
+    image: python:3.11-slim
+    restart: unless-stopped
+    working_dir: /app
+    command: python simulator.py
+    volumes:
+      - ./simulator.py:/app/simulator.py:ro
+    environment:
+      SERVER_HOST: backend
+      SERVER_PORT: "8080"
+      INTERVAL: ${SIMULATOR_INTERVAL:-3}
+    depends_on:
+      backend:
+        condition: service_started
 
 volumes:
   postgres_data:

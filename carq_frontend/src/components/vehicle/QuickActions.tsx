@@ -6,12 +6,13 @@ import {
   Download,
   Gauge,
   MapPin,
+  Radio,
   Route,
   Stethoscope,
 } from "lucide-react";
 
 interface QuickActionsProps {
-  onScrollTo?: (section: "map" | "telemetry" | "dtc" | "alerts" | "trips") => void;
+  onScrollTo?: (section: "map" | "telemetry" | "dtc" | "alerts" | "trips" | "rawlogs") => void;
 }
 
 const ACTIONS = [
@@ -19,6 +20,7 @@ const ACTIONS = [
   { key: "telemetry" as const, label: "View Telemetry", icon: Gauge },
   { key: "dtc" as const, label: "View DTC", icon: Stethoscope },
   { key: "alerts" as const, label: "View Alerts", icon: AlertTriangle },
+  { key: "rawlogs" as const, label: "Raw Device Log", icon: Radio },
   { key: "trips" as const, label: "View Trips", icon: Route },
   { key: "export" as const, label: "Export Data", icon: Download },
 ];

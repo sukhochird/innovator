@@ -163,12 +163,14 @@ class JT808Parser(TelemetryParser):
             dtc_codes=extras.get("dtc_codes", []),
             raw_payload={
                 "protocol": "JT808",
-                "msg_id": msg_id,
+                "msg_id": f"0x{msg_id:04X}",
                 "terminal_phone": terminal_phone,
                 "alarm": alarm,
                 "status": status,
                 "altitude": altitude,
-                "signal_percent": extras.get("signal_percent"),
+                "direction": direction,
+                "tlv": extras,
+                "packet_hex": bytes(payload)[:128].hex() if payload else "",
             },
         )
 

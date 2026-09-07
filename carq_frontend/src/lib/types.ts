@@ -105,6 +105,25 @@ export interface VehicleDashboard {
   alerts: VehicleAlert[];
 }
 
+export interface TelemetryRawLog {
+  id: number;
+  timestamp: string;
+  device: number | null;
+  device_serial: string | null;
+  protocol: string;
+  speed: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  raw_payload: Record<string, unknown>;
+}
+
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 export interface AdminDashboard {
   companies: { total: number; active: number; pending: number };
   devices: { total: number; online: number; active: number };

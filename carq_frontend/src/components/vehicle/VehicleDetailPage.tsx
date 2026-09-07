@@ -10,6 +10,7 @@ import { AlertTimeline } from "./AlertTimeline";
 import { DtcPanel } from "./DtcPanel";
 import { LiveMap } from "./LiveMap";
 import { QuickActions } from "./QuickActions";
+import { RawLogPanel } from "./RawLogPanel";
 import { TelemetryChart } from "./TelemetryChart";
 import { VehicleDetailSkeleton } from "./VehicleDetailSkeleton";
 import { VehicleHeader } from "./VehicleHeader";
@@ -36,15 +37,17 @@ export function VehicleDetailPage({ vehicleId }: VehicleDetailPageProps) {
   const dtcRef = useRef<HTMLElement>(null);
   const alertsRef = useRef<HTMLDivElement>(null);
   const tripsRef = useRef<HTMLDivElement>(null);
+  const rawLogsRef = useRef<HTMLDivElement>(null);
 
   const scrollTo = useCallback(
-    (section: "map" | "telemetry" | "dtc" | "alerts" | "trips") => {
+    (section: "map" | "telemetry" | "dtc" | "alerts" | "trips" | "rawlogs") => {
       const refs = {
         map: mapRef,
         telemetry: telemetryRef,
         dtc: dtcRef,
         alerts: alertsRef,
         trips: tripsRef,
+        rawlogs: rawLogsRef,
       };
       refs[section].current?.scrollIntoView({ behavior: "smooth", block: "start" });
     },
@@ -126,6 +129,10 @@ export function VehicleDetailPage({ vehicleId }: VehicleDetailPageProps) {
             dtc={data.dtc}
             history={data.telemetry_history ?? []}
           />
+        </div>
+
+        <div ref={rawLogsRef}>
+          <RawLogPanel vehicleId={vehicleId} deviceSerial={vehicle.device_serial} />
         </div>
       </div>
     </DashboardLayout>

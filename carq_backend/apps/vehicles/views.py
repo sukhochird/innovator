@@ -14,6 +14,7 @@ from apps.vehicles.models import Vehicle
 from apps.vehicles.serializers import (
     AlertSerializer,
     DTCSerializer,
+    TelemetryRawLogSerializer,
     TelemetrySerializer,
     VehicleAssignDeviceSerializer,
     VehicleAssignDriverSerializer,
@@ -74,6 +75,20 @@ class VehicleViewSet(viewsets.ModelViewSet):
         qs = VehicleTelemetry.objects.filter(vehicle=vehicle).order_by("-timestamp")
         page = self.paginate_queryset(qs)
         serializer = TelemetrySerializer(page or qs, many=True)
+        if page is not None:
+            return self.get_paginated_response(serializer.data)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="raw-logs")
+    def raw_logs(self, request, pk=None):
+        vehicle = self.get_object()
+        qs = (
+            VehicleTelemetry.objects.filter(vehicle=vehicle)
+            .select_related("device")
+            .order_by("-timestamp")
+        )
+        page = self.paginate_queryset(qs)
+        serializer = TelemetryRawLogSerializer(page or qs, many=True)
         if page is not None:
             return self.get_paginated_response(serializer.data)
         return Response(serializer.data)

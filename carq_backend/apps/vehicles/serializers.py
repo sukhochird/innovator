@@ -87,6 +87,29 @@ class TelemetrySerializer(serializers.ModelSerializer):
         )
 
 
+class TelemetryRawLogSerializer(serializers.ModelSerializer):
+    device_serial = serializers.CharField(source="device.serial_number", read_only=True, allow_null=True)
+    protocol = serializers.SerializerMethodField()
+
+    class Meta:
+        model = VehicleTelemetry
+        fields = (
+            "id",
+            "timestamp",
+            "device",
+            "device_serial",
+            "protocol",
+            "speed",
+            "latitude",
+            "longitude",
+            "raw_payload",
+        )
+
+    def get_protocol(self, obj) -> str:
+        payload = obj.raw_payload or {}
+        return str(payload.get("protocol") or "unknown")
+
+
 class DTCSerializer(serializers.ModelSerializer):
     class Meta:
         model = DTCCode

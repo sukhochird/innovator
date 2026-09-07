@@ -63,10 +63,14 @@ dig +short api.carq.autos
 
 ## 2. Clone & configure
 
+Clone into your home directory (no `sudo` required on Ubuntu):
+
 ```bash
-git clone <your-repo-url> /opt/carq
-cd /opt/carq
+git clone git@github.com:sukhochird/innovator.git ~/carq
+cd ~/carq
 ```
+
+> **Note:** We use `~/carq` (`/home/<user>/carq`) instead of `/opt/carq` because `/opt` is owned by root and regular users cannot write there without extra permissions.
 
 Copy and edit production env:
 
@@ -110,7 +114,7 @@ CADDY_EMAIL=admin@carq.autos
 ## 3. Deploy with Docker Compose
 
 ```bash
-cd /opt/carq
+cd ~/carq
 docker compose -f docker-compose.prod.yml --env-file deploy/.env.production up -d --build
 ```
 
@@ -189,7 +193,7 @@ Device terminal phone must match a registered CARQ device (see `README.md` simul
 Pull latest code and redeploy:
 
 ```bash
-cd /opt/carq
+cd ~/carq
 git pull
 docker compose -f docker-compose.prod.yml --env-file deploy/.env.production up -d --build
 ```
@@ -227,8 +231,16 @@ cat backup_2026-09-07.sql | docker compose -f docker-compose.prod.yml exec -T po
 
 ### Automated daily backup (cron)
 
+Replace `ubuntu` with your Linux username if different:
+
 ```bash
-0 3 * * * cd /opt/carq && docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U carq carq | gzip > /backups/carq_$(date +\%F).sql.gz
+0 3 * * * cd /home/ubuntu/carq && docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U carq carq | gzip > /home/ubuntu/backups/carq_$(date +\%F).sql.gz
+```
+
+Create the backups folder once:
+
+```bash
+mkdir -p ~/backups
 ```
 
 ---
@@ -282,6 +294,14 @@ Key Nginx requirements:
 ---
 
 ## Troubleshooting
+
+### `Permission denied` when cloning to `/opt/carq`
+
+Use the home directory instead (recommended in this guide):
+
+```bash
+git clone git@github.com:sukhochird/innovator.git ~/carq
+```
 
 ### CORS errors in browser
 

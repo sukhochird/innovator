@@ -1,5 +1,5 @@
 import { getDtcKnowledge } from "@/lib/dtc-knowledge";
-import type { Device, FleetAlert, FleetDTC } from "@/lib/types";
+import type { Device, FleetAlert, FleetDTC, Vehicle } from "@/lib/types";
 
 export interface AiInsight {
   headline: string;
@@ -129,6 +129,57 @@ export function generateDevicesInsight(devices: Device[]): AiInsight {
     body: `${online} of ${devices.length} devices reporting live. Signal and firmware look nominal — continue standard health checks.`,
     priority: "info",
     tags: ["online", "healthy"],
+  };
+}
+
+export function generateVehiclesInsight(vehicles: Vehicle[]): AiInsight {
+  if (vehicles.length === 0) {
+    return {
+      headline: "No vehicles in fleet",
+      body: "Register vehicles and assign OBD devices to start live tracking, alerts, and diagnostics.",
+      priority: "info",
+      tags: ["onboarding", "fleet"],
+    };
+  }
+
+  const moving = vehicles.filter((v) => (v.current_telemetry?.status ?? v.status) === "MOVING").length;
+  const alert = vehicles.filter((v) => (v.current_telemetry?.status ?? v.status) === "ALERT").length;
+  const offline = vehicles.filter((v) => (v.current_telemetry?.status ?? v.status) === "OFFLINE").length;
+  const noDevice = vehicles.filter((v) => !v.device_serial).length;
+
+  if (alert > 0) {
+    const flagged = vehicles.find((v) => (v.current_telemetry?.status ?? v.status) === "ALERT");
+    return {
+      headline: `${alert} vehicle${alert > 1 ? "s" : ""} in alert state`,
+      body: `Review ${flagged?.plate_number ?? "flagged units"} first — check active alerts and DTC codes before next dispatch. ${moving} vehicle${moving !== 1 ? "s" : ""} currently moving.`,
+      priority: "critical",
+      tags: ["alert", "dispatch", "maintenance"],
+    };
+  }
+
+  if (offline > vehicles.length * 0.4) {
+    return {
+      headline: "Large portion of fleet offline",
+      body: `${offline} of ${vehicles.length} vehicles not reporting GPS. Verify device power, antenna, and JT808 connectivity on offline units.`,
+      priority: "action",
+      tags: ["offline", "connectivity"],
+    };
+  }
+
+  if (noDevice > 0) {
+    return {
+      headline: `${moving} moving · ${vehicles.length - moving} stationary`,
+      body: `${noDevice} vehicle${noDevice > 1 ? "s" : ""} without assigned device — pair hardware to unlock map tracking and geofence alerts.`,
+      priority: "watch",
+      tags: ["assignment", "devices"],
+    };
+  }
+
+  return {
+    headline: "Fleet operations nominal",
+    body: `${moving} vehicle${moving !== 1 ? "s" : ""} active on the road. Monitor coolant and battery trends during long idle periods.`,
+    priority: "info",
+    tags: ["healthy", "monitoring"],
   };
 }
 

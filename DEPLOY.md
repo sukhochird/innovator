@@ -92,10 +92,12 @@ nano deploy/.env.production
 ```env
 DJANGO_SECRET_KEY=<openssl rand -hex 32 үр дүн>
 POSTGRES_PASSWORD=<хүчтэй нууц үг>
-DATABASE_URL=postgres://carq:<POSTGRES_PASSWORD>@postgres:5432/carq
+DATABASE_URL=postgres://carq:<ижил password>@postgres:5432/carq
 CADDY_EMAIL=admin@carq.autos
 COMPOSE_PROFILES=caddy
 ```
+
+> `POSTGRES_PASSWORD` болон `DATABASE_URL` доторх password **яг ижил** байх ёстой.
 
 Бусад утгууд (`NEXT_PUBLIC_*`, `ALLOWED_HOSTS`, `CORS_*`) example файл дээр carq.autos-д тохирсон байна.
 
@@ -105,14 +107,17 @@ COMPOSE_PROFILES=caddy
 
 ```bash
 cd ~/carq
-docker compose -f docker-compose.prod.yml --env-file deploy/.env.production up -d --build
+chmod +x deploy/carq.sh
+./deploy/carq.sh up -d --build
 ```
+
+`deploy/carq.sh` нь `--env-file deploy/.env.production`-ийг автоматаар дамжуулна.
 
 Статус шалгах (бүгд `running` / `healthy`):
 
 ```bash
-docker compose -f docker-compose.prod.yml ps
-docker compose -f docker-compose.prod.yml logs -f caddy backend
+./deploy/carq.sh ps
+./deploy/carq.sh logs -f caddy backend
 ```
 
 `Ctrl+C` — log-оос гарна.
@@ -122,13 +127,13 @@ docker compose -f docker-compose.prod.yml logs -f caddy backend
 ## 5. Admin user үүсгэх
 
 ```bash
-docker compose -f docker-compose.prod.yml exec backend python manage.py createsuperuser
+./deploy/carq.sh exec backend python manage.py createsuperuser
 ```
 
 Demo өгөгдөл (зөвхөн test/staging):
 
 ```bash
-docker compose -f docker-compose.prod.yml exec backend python manage.py seed_demo
+./deploy/carq.sh exec backend python manage.py seed_demo
 ```
 
 ---
@@ -151,8 +156,8 @@ Caddy SSL анх удаа 1–2 минут авч болно. DNS propagate хи
 ```bash
 cd ~/carq
 git pull
-docker compose -f docker-compose.prod.yml --env-file deploy/.env.production up -d --build
-docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
+./deploy/carq.sh up -d --build
+./deploy/carq.sh exec backend python manage.py migrate
 ```
 
 ---
@@ -161,8 +166,7 @@ docker compose -f docker-compose.prod.yml exec backend python manage.py migrate
 
 ```bash
 mkdir -p ~/backups
-docker compose -f docker-compose.prod.yml exec -T postgres \
-  pg_dump -U carq carq | gzip > ~/backups/carq_$(date +%F).sql.gz
+./deploy/carq.sh exec -T postgres pg_dump -U carq carq | gzip > ~/backups/carq_$(date +%F).sql.gz
 ```
 
 ---
@@ -171,22 +175,51 @@ docker compose -f docker-compose.prod.yml exec -T postgres \
 
 **Container статус:**
 ```bash
-docker compose -f docker-compose.prod.yml ps
-docker compose -f docker-compose.prod.yml logs backend
-docker compose -f docker-compose.prod.yml logs caddy
+./deploy/carq.sh ps
+./deploy/carq.sh logs backend
+./deploy/carq.sh logs caddy
+```
+
+**`password authentication failed for user "carq"`**
+
+Ихэвчлэн 2 шалтгаан:
+1. `POSTGRES_PASSWORD` ≠ `DATABASE_URL` доторх password
+2. Postgres volume **өмнө өөр password-оор** эхэлсэн (password-ийг дараа нь `.env`-ээс солиход DB өөрчлөгддөггүй)
+
+Шалгах:
+```bash
+grep -E 'POSTGRES_PASSWORD|DATABASE_URL' deploy/.env.production
+```
+
+**Шийдэл A — өгөгдөл хадгалахгүй (шинэ deploy, хамгийн хялбар):**
+```bash
+cd ~/carq
+# deploy/.env.production дотор password-үүд таарч байгаа эсэхийг засна
+./deploy/carq.sh down -v
+./deploy/carq.sh up -d --build
+./deploy/carq.sh exec backend python manage.py createsuperuser
+```
+
+**Шийдэл B — volume хадгалах, DB password sync:**
+```bash
+# .env доторх шинэ password-ийг NEW_PASS гэж үзнэ
+./deploy/carq.sh exec postgres psql -U carq -d postgres \
+  -c "ALTER USER carq WITH PASSWORD 'NEW_PASS';"
+# deploy/.env.production: POSTGRES_PASSWORD=NEW_PASS, DATABASE_URL=postgres://carq:NEW_PASS@postgres:5432/carq
+./deploy/carq.sh up -d --force-recreate backend
 ```
 
 **Port давхцал** (хоосон server дээр ховор, гэхдээ dev stack ажиллуулсан бол):
 ```bash
 cd ~/carq
 docker compose down
-docker compose -f docker-compose.prod.yml --env-file deploy/.env.production up -d --build
+./deploy/carq.sh up -d --build
 ```
 
 **Frontend localhost руу холбогдож байна** — env өөрчлөөд rebuild:
 ```bash
-docker compose -f docker-compose.prod.yml --env-file deploy/.env.production build --no-cache frontend
-docker compose -f docker-compose.prod.yml --env-file deploy/.env.production up -d frontend
+./deploy/carq.sh build --no-cache frontend
+./deploy/carq.sh up -d frontend
 ```
 
 **CORS / WebSocket** — `deploy/.env.production` дотор:

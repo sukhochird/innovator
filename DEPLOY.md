@@ -151,7 +151,34 @@ docker compose -f docker-compose.prod.yml -f docker-compose.shared.yml \
   --env-file deploy/.env.production up -d --build
 ```
 
-Add Nginx config and SSL:
+Add Nginx config and SSL.
+
+**First, check what is using port 80:**
+
+```bash
+sudo ss -tlnp | grep ':80 '
+which nginx
+nginx -v 2>&1
+```
+
+**If Nginx is not installed**, install it:
+
+```bash
+sudo apt update
+sudo apt install -y nginx certbot python3-certbot-nginx
+sudo systemctl enable nginx
+sudo systemctl start nginx
+```
+
+**If `/etc/nginx/sites-available` does not exist** (minimal install), create it:
+
+```bash
+sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+grep -q 'sites-enabled' /etc/nginx/nginx.conf || \
+  echo 'include /etc/nginx/sites-enabled/*;' | sudo tee /etc/nginx/conf.d/carq-sites.conf
+```
+
+Then add the CARQ vhost:
 
 ```bash
 sudo cp deploy/nginx/carq.autos.conf /etc/nginx/sites-available/carq.autos
@@ -160,6 +187,8 @@ sudo nginx -t
 sudo certbot --nginx -d carq.autos -d www.carq.autos -d api.carq.autos
 sudo systemctl reload nginx
 ```
+
+> **Not Nginx?** If port 80 is used by **Apache** (`apache2`) or another proxy, add equivalent `ProxyPass` rules for `carq.autos` → `127.0.0.1:3000` and `api.carq.autos` → `127.0.0.1:8000` in that server's config instead.
 
 Remove a failed Caddy container from a previous attempt:
 
@@ -399,6 +428,25 @@ docker compose -f docker-compose.prod.yml --env-file deploy/.env.production up -
 ```
 
 See **Mode B — Shared server** for running CARQ alongside an existing website.
+
+### `/etc/nginx/sites-available` does not exist
+
+Nginx is probably not installed, or this server uses a different web stack.
+
+```bash
+sudo ss -tlnp | grep ':80 '
+which nginx apache2 caddy 2>/dev/null
+```
+
+Install Nginx (Ubuntu/Debian):
+
+```bash
+sudo apt update
+sudo apt install -y nginx certbot python3-certbot-nginx
+sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+```
+
+Then repeat the Mode B Nginx steps from section 3.
 
 ### CORS errors in browser
 

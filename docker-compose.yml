@@ -1,0 +1,80 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: carq
+      POSTGRES_PASSWORD: carq
+      POSTGRES_DB: carq
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carq"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./carq_backend
+      dockerfile: Dockerfile
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py seed_demo &&
+             python manage.py run_jt808_server --port 8080 &
+             daphne -b 0.0.0.0 -p 8000 config.asgi:application"
+    volumes:
+      - ./carq_backend:/app
+    ports:
+      - "8000:8000"
+      - "8080:8080"
+    environment:
+      DJANGO_SECRET_KEY: dev-secret-key
+      DEBUG: "True"
+      DATABASE_URL: postgres://carq:carq@postgres:5432/carq
+      REDIS_URL: redis://redis:6379/0
+      CORS_ALLOWED_ORIGINS: http://localhost:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./carq_frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+      NEXT_PUBLIC_WS_URL: ws://localhost:8000
+    depends_on:
+      - backend
+
+  jt808-simulator:
+    image: python:3.11-slim
+    working_dir: /app
+    command: python simulator.py
+    volumes:
+      - ./simulator.py:/app/simulator.py
+    environment:
+      SERVER_HOST: backend
+      SERVER_PORT: "8080"
+      INTERVAL: "3"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

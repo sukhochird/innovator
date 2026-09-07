@@ -1,0 +1,101 @@
+# ── Environment & secrets ───────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+deploy/.env.production
+
+# Keep env templates (safe to commit)
+!.env.example
+!**/.env.example
+!deploy/.env.production.example
+
+# ── Python / Django ─────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Django runtime
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+*.log
+
+# Testing / lint caches
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+
+# ── Node / Next.js ──────────────────────────────────────
+node_modules/
+.next/
+out/
+build/
+.turbo/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.tsbuildinfo
+
+# Vercel
+.vercel
+
+# ── Docker ──────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── IDE / Editor ────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# ── OS ──────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ── Logs & temp ─────────────────────────────────────────
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+
+# ── SSL / local deploy data ─────────────────────────────
+*.pem
+*.key
+caddy_data/
+
+# ── Coverage ────────────────────────────────────────────
+coverage/
+.nyc_output/

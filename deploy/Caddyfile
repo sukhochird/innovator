@@ -1,0 +1,13 @@
+{
+	email {$CADDY_EMAIL}
+}
+
+carq.autos, www.carq.autos {
+	encode gzip
+	reverse_proxy frontend:3000
+}
+
+api.carq.autos {
+	encode gzip
+	reverse_proxy backend:8000
+}

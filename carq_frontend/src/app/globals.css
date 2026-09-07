@@ -1,0 +1,160 @@
+@import "tailwindcss";
+@import "maplibre-gl/dist/maplibre-gl.css";
+
+:root,
+[data-theme="dark"] {
+  --background: #09090b;
+  --foreground: #fafafa;
+
+  --dash-bg: #0c0c0e;
+  --sidebar-bg: #09090b;
+  --dash-header-bg: rgba(12, 12, 14, 0.92);
+  --dash-text: #f4f4f5;
+  --dash-text-secondary: #d4d4d8;
+  --dash-muted: #71717a;
+  --dash-border: #27272a;
+  --dash-hover: #18181b;
+  --dash-active: #27272a;
+  --dash-card: #09090b;
+  --dash-card-border: #27272a;
+  --surface-deep: #0b0d10;
+  --surface-elevated: #11151a;
+  --input-bg: #18181b;
+  --input-border: #3f3f46;
+  --gauge-track: #1e2530;
+  --overlay-bg: rgba(11, 13, 16, 0.92);
+  --chart-bg: #0b0d10;
+  --chart-grid: #1e2530;
+  --tooltip-bg: #18181b;
+  --tooltip-border: #3f3f46;
+  --skeleton: #27272a;
+
+  --landing-bg: #09090b;
+  --landing-bg-alt: #0f1117;
+  --landing-surface: #09090b;
+  --landing-surface-hover: #18181b;
+  --landing-text: #fafafa;
+  --landing-muted: #a1a1aa;
+  --landing-border: #27272a;
+  --landing-nav-bg: rgba(9, 9, 11, 0.9);
+}
+
+[data-theme="light"] {
+  --background: #ffffff;
+  --foreground: #18181b;
+
+  --dash-bg: #f4f4f5;
+  --sidebar-bg: #ffffff;
+  --dash-header-bg: rgba(255, 255, 255, 0.92);
+  --dash-text: #18181b;
+  --dash-text-secondary: #3f3f46;
+  --dash-muted: #71717a;
+  --dash-border: #e4e4e7;
+  --dash-hover: #f4f4f5;
+  --dash-active: #e4e4e7;
+  --dash-card: #ffffff;
+  --dash-card-border: #e4e4e7;
+  --surface-deep: #fafafa;
+  --surface-elevated: #ffffff;
+  --input-bg: #ffffff;
+  --input-border: #d4d4d8;
+  --gauge-track: #d4d4d8;
+  --overlay-bg: rgba(255, 255, 255, 0.95);
+  --chart-bg: #ffffff;
+  --chart-grid: #e4e4e7;
+  --tooltip-bg: #ffffff;
+  --tooltip-border: #e4e4e7;
+  --skeleton: #e4e4e7;
+
+  --landing-bg: #ffffff;
+  --landing-bg-alt: #f8fafc;
+  --landing-surface: #ffffff;
+  --landing-surface-hover: #f4f4f5;
+  --landing-text: #18181b;
+  --landing-muted: #52525b;
+  --landing-border: #e4e4e7;
+  --landing-nav-bg: rgba(255, 255, 255, 0.92);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal-on-scroll {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.reveal-on-scroll.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.fleet-map {
+  border-color: var(--dash-border);
+}
+
+.fleet-map .fleet-marker {
+  cursor: pointer;
+}
+
+.fleet-map .marker-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.fleet-map .marker-dot.moving { background: #34d399; }
+.fleet-map .marker-dot.idle { background: #fbbf24; }
+.fleet-map .marker-dot.stopped { background: #71717a; }
+.fleet-map .marker-dot.offline { background: #52525b; }
+.fleet-map .marker-dot.alert { background: #ef4444; }
+.fleet-map .marker-dot.online { background: #60a5fa; }
+
+.fleet-map .fleet-marker.selected .marker-dot {
+  width: 18px;
+  height: 18px;
+  border-color: #34d399;
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.6);
+}
+
+input, select, button {
+  font-family: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--dash-hover);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--dash-muted);
+  border-radius: 3px;
+}

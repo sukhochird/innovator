@@ -1,0 +1,17 @@
+FROM node:20-alpine AS base
+WORKDIR /app
+
+ARG NEXT_PUBLIC_API_URL=https://api.carq.autos
+ARG NEXT_PUBLIC_WS_URL=wss://api.carq.autos
+ARG NEXT_PUBLIC_SITE_URL=https://carq.autos
+
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+EXPOSE 3000
+CMD ["npm", "start"]

@@ -303,6 +303,37 @@ Use the home directory instead (recommended in this guide):
 git clone git@github.com:sukhochird/innovator.git ~/carq
 ```
 
+### Port 8080 already allocated
+
+Another process or Docker container is using port 8080 (often a previous `docker compose up` dev stack).
+
+**1. Find what uses the port:**
+
+```bash
+sudo ss -tlnp | grep 8080
+docker ps --format "table {{.Names}}\t{{.Ports}}" | grep 8080
+```
+
+**2a. Stop the conflicting container** (e.g. old dev stack):
+
+```bash
+cd ~/carq
+docker compose down
+docker compose -f docker-compose.prod.yml --env-file deploy/.env.production up -d
+```
+
+**2b. Or use a different host port** — add to `deploy/.env.production`:
+
+```env
+JT808_HOST_PORT=18080
+```
+
+Then redeploy and point JT808 devices to `<server-ip>:18080`:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file deploy/.env.production up -d
+```
+
 ### CORS errors in browser
 
 Ensure `CORS_ALLOWED_ORIGINS` includes `https://carq.autos` (no trailing slash).

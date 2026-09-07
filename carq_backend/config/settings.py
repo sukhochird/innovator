@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "apps.alerts",
     "apps.realtime",
     "apps.dashboard",
+    "apps.geofences",
 ]
 
 MIDDLEWARE = [

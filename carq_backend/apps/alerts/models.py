@@ -8,6 +8,8 @@ class AlertType(models.TextChoices):
     ENGINE_DTC = "ENGINE_DTC", "Engine DTC"
     DEVICE_OFFLINE = "DEVICE_OFFLINE", "Device Offline"
     SPEED_LIMIT = "SPEED_LIMIT", "Speed Limit"
+    GEOFENCE_ENTER = "GEOFENCE_ENTER", "Geofence Enter"
+    GEOFENCE_EXIT = "GEOFENCE_EXIT", "Geofence Exit"
 
 
 class AlertSeverity(models.TextChoices):

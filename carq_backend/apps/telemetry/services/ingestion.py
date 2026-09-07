@@ -117,6 +117,7 @@ class TelemetryIngestionService:
 
         self._process_dtc(device, vehicle, data)
         self._check_alerts(vehicle, data)
+        self._check_geofences(vehicle, data)
         self._broadcast_telemetry(vehicle.id, current_state)
         return telemetry
 
@@ -178,6 +179,17 @@ class TelemetryIngestionService:
             DTCCode.objects.filter(vehicle=vehicle, code=code, is_active=True).update(
                 last_detected_at=now
             )
+
+    def _check_geofences(self, vehicle, data: NormalizedTelemetry) -> None:
+        if data.latitude is None or data.longitude is None:
+            return
+        from apps.geofences.services import process_geofence_transitions
+
+        process_geofence_transitions(
+            vehicle,
+            float(data.latitude),
+            float(data.longitude),
+        )
 
     def _check_alerts(self, vehicle, data: NormalizedTelemetry) -> None:
         if data.coolant_temperature and data.coolant_temperature > 105:

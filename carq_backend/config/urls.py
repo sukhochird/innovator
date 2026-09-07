@@ -11,6 +11,7 @@ urlpatterns = [
     path("api/devices/", include("apps.devices.urls")),
     path("api/vehicles/", include("apps.vehicles.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
+    path("api/geofences/", include("apps.geofences.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
 ]

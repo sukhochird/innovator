@@ -196,3 +196,54 @@ export interface Device {
   terminal_phone?: string | null;
   is_online: boolean;
 }
+
+export type GeofenceType = "CIRCLE" | "POLYGON" | "RECTANGLE";
+
+export interface GeofenceGeometry {
+  center?: [number, number];
+  radius_m?: number;
+  coordinates?: [number, number][];
+  bounds?: [[number, number], [number, number]];
+}
+
+export interface Geofence {
+  id: number;
+  company: number;
+  name: string;
+  description: string;
+  type: GeofenceType;
+  geometry: GeofenceGeometry;
+  radius_m: number | null;
+  is_active: boolean;
+  alert_on_entry: boolean;
+  alert_on_exit: boolean;
+  assign_all: boolean;
+  vehicle_ids?: number[];
+  assigned_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface TrackStatistics {
+  distance_km: number;
+  duration_seconds: number;
+  duration_display: string;
+  average_speed_kmh: number;
+  max_speed_kmh: number;
+  idle_time_seconds: number;
+  idle_time_display: string;
+  stops: number;
+  point_count: number;
+}
+
+export interface TrackHistoryResponse {
+  vehicle_id: number;
+  start: string;
+  end: string;
+  points: TelemetryData[];
+  stats: TrackStatistics;
+}
+
+export type FleetStatusFilter = "ALL" | "MOVING" | "IDLE" | "STOPPED" | "OFFLINE" | "ALERT";
+
+export type FleetMapMode = "live" | "history";

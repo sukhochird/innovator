@@ -119,6 +119,11 @@ body {
 
 .fleet-map .fleet-marker {
   cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.fleet-map .fleet-marker.selected {
+  z-index: 10;
 }
 
 .fleet-map .marker-dot {

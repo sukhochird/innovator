@@ -73,11 +73,80 @@ class VehicleViewSet(viewsets.ModelViewSet):
     def telemetry(self, request, pk=None):
         vehicle = self.get_object()
         qs = VehicleTelemetry.objects.filter(vehicle=vehicle).order_by("-timestamp")
+        start = request.query_params.get("start")
+        end = request.query_params.get("end")
+        if start:
+            from apps.telemetry.services.track_stats import parse_datetime_range
+
+            start_dt, end_dt = parse_datetime_range(start, end or None)
+            qs = qs.filter(timestamp__gte=start_dt, timestamp__lte=end_dt).order_by("timestamp")
         page = self.paginate_queryset(qs)
         serializer = TelemetrySerializer(page or qs, many=True)
         if page is not None:
             return self.get_paginated_response(serializer.data)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="track-history")
+    def track_history(self, request, pk=None):
+        from apps.telemetry.services.track_stats import (
+            compute_track_statistics,
+            parse_datetime_range,
+            simplify_route,
+        )
+
+        vehicle = self.get_object()
+        start = request.query_params.get("start")
+        end = request.query_params.get("end")
+        start_dt, end_dt = parse_datetime_range(start, end)
+
+        rows = (
+            VehicleTelemetry.objects.filter(
+                vehicle=vehicle,
+                timestamp__gte=start_dt,
+                timestamp__lte=end_dt,
+                latitude__isnull=False,
+                longitude__isnull=False,
+            )
+            .order_by("timestamp")
+            .values(
+                "timestamp",
+                "latitude",
+                "longitude",
+                "speed",
+                "heading",
+                "rpm",
+                "coolant_temperature",
+                "battery_voltage",
+                "ignition",
+            )[:5000]
+        )
+        points = list(rows)
+        stats_input = [{"timestamp": p["timestamp"], **{k: p[k] for k in p if k != "timestamp"}} for p in points]
+        stats = compute_track_statistics(stats_input)
+        simplified = simplify_route(stats_input)
+
+        def point_dict(p):
+            return {
+                "timestamp": p["timestamp"].isoformat() if p.get("timestamp") else None,
+                "latitude": float(p["latitude"]) if p.get("latitude") is not None else None,
+                "longitude": float(p["longitude"]) if p.get("longitude") is not None else None,
+                "speed": p.get("speed"),
+                "heading": p.get("heading"),
+                "rpm": p.get("rpm"),
+                "coolant_temperature": p.get("coolant_temperature"),
+                "battery_voltage": p.get("battery_voltage"),
+                "ignition": p.get("ignition"),
+            }
+
+        return Response(
+            {
+                "vehicle_id": vehicle.id,
+                "start": start_dt.isoformat(),
+                "end": end_dt.isoformat(),
+                "points": [point_dict(p) for p in simplified],
+                "stats": stats,
+            }
+        )
 
     @action(detail=True, methods=["get"], url_path="raw-logs")
     def raw_logs(self, request, pk=None):

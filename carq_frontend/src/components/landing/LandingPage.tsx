@@ -6,24 +6,14 @@ import { Hero } from "@/components/landing/Hero";
 import { LeadFormModal } from "@/components/landing/LeadFormModal";
 import { Navbar } from "@/components/landing/Navbar";
 import {
-  BusinessValueSection,
-  ComparisonSection,
-  DemoCTASection,
-  DtcSection,
-  FAQSection,
-  FleetSection,
+  AdvantageSection,
+  ClosingSection,
   Footer,
   HowItWorksSection,
-  IndustriesSection,
-  PricingSection,
-  ProblemSection,
-  SecuritySection,
-  SolutionSection,
-  TelemetrySection,
-  TrustBar,
-  UseCasesSection,
-  VehicleHealthSection,
-  WhyCarqSection,
+  InnovatorSection,
+  MarketsSection,
+  OverviewSection,
+  PlatformSection,
 } from "@/components/landing/Sections";
 import { I18nProvider } from "@/components/providers/I18nProvider";
 import type { LeadType } from "@/lib/leads";
@@ -42,24 +32,15 @@ function LandingContent() {
       <Navbar onOpenDemo={() => openForm("demo")} />
       <main>
         <Hero onDemo={() => openForm("demo")} onQuote={() => openForm("pricing")} />
-        <TrustBar />
-        <ProblemSection />
-        <SolutionSection />
+        <OverviewSection />
+        <PlatformSection />
         <HowItWorksSection />
-        <TelemetrySection />
-        <FleetSection />
-        <VehicleHealthSection />
-        <DtcSection />
-        <BusinessValueSection />
-        <WhyCarqSection />
-        <ComparisonSection />
-        <IndustriesSection />
-        <UseCasesSection />
-        <SecuritySection />
-        <PricingSection onQuote={() => openForm("pricing")} />
-        <FAQSection />
-        <DemoCTASection
+        <AdvantageSection />
+        <MarketsSection />
+        <InnovatorSection />
+        <ClosingSection
           onDemo={() => openForm("demo")}
+          onQuote={() => openForm("pricing")}
           onContact={() => openForm("contact")}
         />
         <Footer

@@ -360,6 +360,112 @@ const mn: TranslationDict = {
       },
     ],
   },
+  presentation: {
+    headline: "CARQ — Технологи ба бизнесийн илтгэл",
+    subheadline:
+      "Ухаалаг флот удирдлагын платформын технологийн шийдэл, прототайп болон бизнесийн загвар",
+    techBadge: "🧑‍💻 Технологийн чиглэл",
+    businessBadge: "🪙 Бизнесийн чиглэл",
+    tech: {
+      title: "Технологийн шийдэл",
+      introTitle: "Товч танилцуулга",
+      intro:
+        "CARQ нь автомашины GPS, OBD telemetry, оношилгоо болон флот удирдлагын нэгдсэн платформ юм. Бид JT808 протокол дээр суурилсан төхөөрөмжөөс мэдээлэл хүлээн авч, realtime dashboard, газрын зураг, анхааруулга, geofence зэрэг функцээр харуулдаг.",
+      stack: [
+        {
+          name: "Django + DRF + Channels",
+          reason: "REST API, JWT auth, WebSocket realtime — IoT telemetry-д тохирсон backend.",
+        },
+        {
+          name: "PostgreSQL + Redis",
+          reason: "Telemetry түүх, флот өгөгдөл найдвартай хадгалах; Redis cache болон channel layer.",
+        },
+        {
+          name: "Next.js + TypeScript",
+          reason: "Хурдан dashboard UI, SEO-той landing page, production deploy-д тохиромжтой.",
+        },
+        {
+          name: "MapLibre GL + OpenFreeMap",
+          reason: "API key шаардахгүй газрын зураг; флот tracking, trail, geofence дэмжлэг.",
+        },
+        {
+          name: "JT808 TCP + simulator.py",
+          reason: "Бодит GPS/OBD төхөөрөмжийн протоколыг дэмжиж, demo болон туршилтад ашиглана.",
+        },
+      ],
+      prototypeTitle: "Прототайп үзүүлбэр",
+      prototype:
+        "Ажиллаж буй прототайп нь Fleet Command Center (/fleet), компанийн dashboard, машин бүрийн дэлгэрэнгүй хуудас, DTC/Alerts hub, geofence удирдлага, track history болон playback-ийг агуулна.",
+      features: [
+        "Realtime WebSocket — машины telemetry шууд шинэчлэгдэнэ",
+        "Fleet map — 3+ машины GPS trail, focus, dark/light map view",
+        "JT808 simulator — Улаанбаатар төвийг тойрсон demo маршрут",
+        "DTC оношилгоо + AI insight — алдааны код, анхааруулга",
+        "Geofence — орж/гарах үед автомат alert",
+        "Docker production deploy — carq.autos дээр ажиллах бэлэн",
+      ],
+      demoNote:
+        "Demo: company@carq.local / company123 → /fleet, /dashboard. simulator.py ажиллуулбал map дээр live track харагдана.",
+      futureTitle: "Ирээдүйн төлөв",
+      future:
+        "CARQ платформыг логистик, хүргэлт, барилга, уул уурхай, корпораци флот зэрэг олон салбарт масштаблаж, ERP/TMS системтэй API интеграци хийх боломжтой.",
+      futureItems: [
+        "Монголын логистик компаниудад SaaS флот удирдлага",
+        "Засвар үйлчилгээний төвүүдэд predictive maintenance",
+        "Түрээсийн компаниудад машины эрүүл мэнд + GPS",
+        "Уул уурхай, барилгын талбайн техникийн хяналт",
+        "Олон улсын зах зээлд white-label fleet platform",
+      ],
+    },
+    business: {
+      title: "Бизнесийн загвар",
+      definitionTitle: "Бизнесийн тодорхойлолт",
+      targetLabel: "Зорилтот хэрэглэгч",
+      targetUsers:
+        "Логистик, хүргэлт, такси/тээвэр, барилга, уул уурхай, корпораци флот, түрээсийн компаниуд — 5–500+ машинтай байгууллагууд.",
+      problemLabel: "Асуудал",
+      problem:
+        "Менежер машинуудын байршил, төлөв, эрүүл мэндийг нэг дор харахгүй; Excel, утас, тусдаа GPS системээр удирдахад цаг алдагдана; жижиг доголдол том засвар болно.",
+      solutionLabel: "Шийдэл",
+      solution:
+        "CARQ нь GPS + OBD + оношилгоо + анхааруулгыг нэг SaaS платформд нэгтгэж, realtime dashboard, map tracking, DTC alert, geofence-ээр үйл ажиллагааны харагдацыг нэмэгдүүлнэ.",
+      marketTitle: "Бизнес загвар ба зах зээл",
+      market:
+        "Монголын тээвэр, логистик, барилга, уул уурхайн салбарт 10,000+ аж ахуйн нэгж, ихэнх нь флотын хяналтгүй эсвэл уламжлалт GPS ашигладаг. CARQ нь telemetry-г нэмж өгснөөр илүү өндөр үнэ цэнийг санал болгоно.",
+      revenueItems: [
+        {
+          label: "SaaS subscription",
+          description: "Машин бүрт сарын төлбөр (telemetry давтамж, функцээс хамаарна).",
+        },
+        {
+          label: "Төхөөрөмж + суулгалт",
+          description: "OBD/GPS төхөөрөмж борлуулалт, суулгалтын үйлчилгээ.",
+        },
+        {
+          label: "Enterprise license",
+          description: "100+ машин, custom интеграци, dedicated support.",
+        },
+        {
+          label: "API / интеграци",
+          description: "ERP, TMS, засварын системтэй холбох нэмэлт төсөл.",
+        },
+      ],
+      planTitle: "Хэрэгжүүлэх төлөвлөгөө",
+      planIntro: "Энгийн 3 жилийн P&L төлөвлөгөө (MNT, сая) — 50 машин pilot → 200 машин масштаб:",
+      plRows: [
+        { line: "Орлого", year1: "45", year2: "180", year3: "420" },
+        { line: "Төхөөрөмж + COGS", year1: "18", year2: "54", year3: "105" },
+        { line: "Хөгжүүлэлт, cloud", year1: "12", year2: "24", year3: "36" },
+        { line: "Борлуулалт, маркетинг", year1: "8", year2: "20", year3: "35" },
+        { line: "Цэвэр ашиг (PL)", year1: "7", year2: "82", year3: "244" },
+      ],
+      plNote: "*Төлөвлөгөө: жил 1 — 2 pilot компани (50 машин); жил 2 — 8 компани (200 машин); жил 3 — 20 компани (500+ машин).",
+      plHeader: "PL",
+      year1Label: "Жил 1",
+      year2Label: "Жил 2",
+      year3Label: "Жил 3",
+    },
+  },
   footer: {
     tagline: "Ухаалаг автомашины хяналт, оношилгоо, флот удирдлагын систем",
     products: "Бүтээгдэхүүн",

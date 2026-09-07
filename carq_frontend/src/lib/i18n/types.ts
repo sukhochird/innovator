@@ -114,6 +114,46 @@ export interface TranslationDict {
     headline: string;
     items: { question: string; answer: string }[];
   };
+  presentation: {
+    headline: string;
+    subheadline: string;
+    techBadge: string;
+    businessBadge: string;
+    tech: {
+      title: string;
+      introTitle: string;
+      intro: string;
+      stack: { name: string; reason: string }[];
+      prototypeTitle: string;
+      prototype: string;
+      features: string[];
+      demoNote: string;
+      futureTitle: string;
+      future: string;
+      futureItems: string[];
+    };
+    business: {
+      title: string;
+      definitionTitle: string;
+      targetLabel: string;
+      targetUsers: string;
+      problemLabel: string;
+      problem: string;
+      solutionLabel: string;
+      solution: string;
+      marketTitle: string;
+      market: string;
+      revenueItems: { label: string; description: string }[];
+      planTitle: string;
+      planIntro: string;
+      plRows: { line: string; year1: string; year2: string; year3: string }[];
+      plNote: string;
+      plHeader: string;
+      year1Label: string;
+      year2Label: string;
+      year3Label: string;
+    };
+  };
   footer: {
     tagline: string;
     products: string;

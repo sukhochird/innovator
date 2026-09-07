@@ -10,10 +10,10 @@ import type { Locale } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
 const NAV_IDS = [
-  { key: "solutions", href: "#solution" },
-  { key: "industries", href: "#industries" },
+  { key: "solutions", href: "#platform" },
   { key: "howItWorks", href: "#how-it-works" },
   { key: "whyCarq", href: "#why-carq" },
+  { key: "industries", href: "#industries" },
   { key: "pricing", href: "#pricing" },
 ] as const;
 

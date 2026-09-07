@@ -40,6 +40,17 @@ export function Hero({ onDemo, onQuote }: { onDemo: () => void; onQuote: () => v
               {t.hero.secondaryCta}
             </button>
           </div>
+          <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2">
+            {t.trust.items.map((item) => (
+              <span
+                key={item}
+                className="flex items-center gap-1.5 text-xs text-[var(--landing-muted)]"
+              >
+                <span className="h-1 w-1 rounded-full bg-cyan-400" />
+                {item}
+              </span>
+            ))}
+          </div>
         </div>
 
         <div className="relative">

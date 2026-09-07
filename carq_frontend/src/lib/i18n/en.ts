@@ -360,6 +360,112 @@ const en: TranslationDict = {
       },
     ],
   },
+  presentation: {
+    headline: "CARQ — Technology & Business Presentation",
+    subheadline:
+      "Technology stack, working prototype and business model for an intelligent fleet platform",
+    techBadge: "🧑‍💻 Technology",
+    businessBadge: "🪙 Business",
+    tech: {
+      title: "Technology Solution",
+      introTitle: "Overview",
+      intro:
+        "CARQ is a unified platform for vehicle GPS, OBD telemetry, diagnostics and fleet management. We ingest data from JT808 hardware, then expose realtime dashboards, maps, alerts and geofences.",
+      stack: [
+        {
+          name: "Django + DRF + Channels",
+          reason: "REST API, JWT auth and WebSocket realtime suited for IoT telemetry.",
+        },
+        {
+          name: "PostgreSQL + Redis",
+          reason: "Reliable telemetry history and fleet data; Redis cache and channel layer.",
+        },
+        {
+          name: "Next.js + TypeScript",
+          reason: "Fast dashboard UI, SEO landing page and production-ready deploy.",
+        },
+        {
+          name: "MapLibre GL + OpenFreeMap",
+          reason: "Key-free maps with fleet tracking, trails and geofence support.",
+        },
+        {
+          name: "JT808 TCP + simulator.py",
+          reason: "Supports real GPS/OBD device protocol for demo and testing.",
+        },
+      ],
+      prototypeTitle: "Prototype Demo",
+      prototype:
+        "The working prototype includes Fleet Command Center (/fleet), company dashboard, per-vehicle detail pages, DTC/Alerts hubs, geofence management, track history and playback.",
+      features: [
+        "Realtime WebSocket — live telemetry updates",
+        "Fleet map — multi-vehicle GPS trails, focus, dark/light views",
+        "JT808 simulator — demo routes around Ulaanbaatar center",
+        "DTC diagnostics + AI insights — fault codes and alerts",
+        "Geofence — automatic entry/exit alerts",
+        "Docker production deploy — live at carq.autos",
+      ],
+      demoNote:
+        "Demo login: company@carq.local / company123 → /fleet, /dashboard. Run simulator.py for live map tracks.",
+      futureTitle: "Future Outlook",
+      future:
+        "CARQ can scale to logistics, delivery, construction, mining and corporate fleets with ERP/TMS API integrations.",
+      futureItems: [
+        "SaaS fleet management for Mongolian logistics companies",
+        "Predictive maintenance for service centers",
+        "Vehicle health + GPS for rental companies",
+        "Site equipment monitoring for mining and construction",
+        "White-label fleet platform for international markets",
+      ],
+    },
+    business: {
+      title: "Business Model",
+      definitionTitle: "Business Definition",
+      targetLabel: "Target customers",
+      targetUsers:
+        "Logistics, delivery, taxi/transport, construction, mining, corporate fleets and rental companies with 5–500+ vehicles.",
+      problemLabel: "Problem",
+      problem:
+        "Managers lack a single view of location, status and vehicle health; Excel, phone calls and separate GPS tools waste time; small faults become expensive repairs.",
+      solutionLabel: "Solution",
+      solution:
+        "CARQ combines GPS + OBD + diagnostics + alerts in one SaaS platform with realtime dashboard, map tracking, DTC alerts and geofences.",
+      marketTitle: "Business Model & Market",
+      market:
+        "Mongolia's transport, logistics, construction and mining sectors include 10,000+ businesses, many without modern fleet visibility. CARQ adds telemetry value beyond traditional GPS.",
+      revenueItems: [
+        {
+          label: "SaaS subscription",
+          description: "Monthly fee per vehicle based on telemetry frequency and features.",
+        },
+        {
+          label: "Hardware + installation",
+          description: "OBD/GPS device sales and installation services.",
+        },
+        {
+          label: "Enterprise license",
+          description: "100+ vehicles, custom integrations and dedicated support.",
+        },
+        {
+          label: "API / integration",
+          description: "Additional projects connecting ERP, TMS and maintenance systems.",
+        },
+      ],
+      planTitle: "Implementation Plan",
+      planIntro: "Simple 3-year P&L plan (MNT, millions) — 50-vehicle pilot to 200+ vehicle scale:",
+      plRows: [
+        { line: "Revenue", year1: "45", year2: "180", year3: "420" },
+        { line: "Hardware + COGS", year1: "18", year2: "54", year3: "105" },
+        { line: "Dev + cloud", year1: "12", year2: "24", year3: "36" },
+        { line: "Sales + marketing", year1: "8", year2: "20", year3: "35" },
+        { line: "Net profit (P&L)", year1: "7", year2: "82", year3: "244" },
+      ],
+      plNote: "*Plan assumes year 1: 2 pilot companies (50 vehicles); year 2: 8 companies (200 vehicles); year 3: 20 companies (500+ vehicles).",
+      plHeader: "P&L",
+      year1Label: "Year 1",
+      year2Label: "Year 2",
+      year3Label: "Year 3",
+    },
+  },
   footer: {
     tagline: "Intelligent Vehicle Monitoring & Fleet Management Platform",
     products: "Products",

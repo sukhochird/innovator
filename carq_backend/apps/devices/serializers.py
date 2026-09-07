@@ -22,6 +22,7 @@ class DeviceSerializer(serializers.ModelSerializer):
             "vehicle_plate",
             "last_seen_at",
             "last_ip",
+            "terminal_phone",
             "is_online",
             "created_at",
             "updated_at",

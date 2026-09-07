@@ -158,3 +158,53 @@ def build_admin_dashboard():
             )
         ),
     }
+
+
+def _vehicles_for_user(user):
+    if user.role == UserRole.SUPER_ADMIN:
+        return Vehicle.objects.all()
+    if user.role == UserRole.COMPANY_ADMIN and user.company_id:
+        return Vehicle.objects.filter(company_id=user.company_id)
+    if user.role == UserRole.DRIVER:
+        return Vehicle.objects.filter(driver=user)
+    return Vehicle.objects.none()
+
+
+def build_fleet_alerts(user, active_only=True):
+    vehicle_ids = list(_vehicles_for_user(user).values_list("id", flat=True))
+    qs = VehicleAlert.objects.filter(vehicle_id__in=vehicle_ids).select_related("vehicle")
+    if active_only:
+        qs = qs.filter(resolved_at__isnull=True)
+    alerts = qs.order_by("-created_at")[:200]
+    from apps.dashboard.serializers import FleetAlertSerializer
+
+    data = FleetAlertSerializer(alerts, many=True).data
+    return {
+        "summary": {
+            "total": len(data),
+            "critical": sum(1 for a in data if a["severity"] == AlertSeverity.CRITICAL),
+            "warning": sum(1 for a in data if a["severity"] == AlertSeverity.WARNING),
+            "info": sum(1 for a in data if a["severity"] == AlertSeverity.INFO),
+        },
+        "alerts": data,
+    }
+
+
+def build_fleet_dtc(user, active_only=True):
+    vehicle_ids = list(_vehicles_for_user(user).values_list("id", flat=True))
+    qs = DTCCode.objects.filter(vehicle_id__in=vehicle_ids).select_related("vehicle")
+    if active_only:
+        qs = qs.filter(is_active=True)
+    codes = qs.order_by("-last_detected_at")[:200]
+    from apps.dashboard.serializers import FleetDTCSerializer
+
+    data = FleetDTCSerializer(codes, many=True).data
+    return {
+        "summary": {
+            "total": len(data),
+            "active": sum(1 for d in data if d["is_active"]),
+            "critical": sum(1 for d in data if d["severity"] == "CRITICAL"),
+            "warning": sum(1 for d in data if d["severity"] == "WARNING"),
+        },
+        "codes": data,
+    }

@@ -87,6 +87,13 @@ export interface DTCCode {
   resolved_at?: string | null;
 }
 
+export interface FleetDTC extends DTCCode {
+  vehicle_id: number;
+  vehicle_plate: string;
+  vehicle_make: string;
+  vehicle_model: string;
+}
+
 export interface VehicleAlert {
   id: number;
   type: string;
@@ -95,6 +102,25 @@ export interface VehicleAlert {
   created_at: string;
   value?: number | null;
   resolved_at?: string | null;
+}
+
+export interface FleetAlert extends VehicleAlert {
+  vehicle_id: number;
+  vehicle_plate: string;
+  vehicle_make: string;
+  vehicle_model: string;
+  threshold?: number | null;
+  acknowledged_at?: string | null;
+}
+
+export interface FleetAlertsResponse {
+  summary: { total: number; critical: number; warning: number; info: number };
+  alerts: FleetAlert[];
+}
+
+export interface FleetDtcResponse {
+  summary: { total: number; active: number; critical: number; warning: number };
+  codes: FleetDTC[];
 }
 
 export interface VehicleDashboard {
@@ -167,5 +193,6 @@ export interface Device {
   vehicle_id: number | null;
   vehicle_plate: string | null;
   last_seen_at: string | null;
+  terminal_phone?: string | null;
   is_online: boolean;
 }

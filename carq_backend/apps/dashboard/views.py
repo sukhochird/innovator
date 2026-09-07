@@ -8,6 +8,8 @@ from apps.dashboard.selectors import (
     build_admin_dashboard,
     build_company_dashboard,
     build_driver_dashboard,
+    build_fleet_alerts,
+    build_fleet_dtc,
     build_vehicle_dashboard,
 )
 from apps.vehicles.services import get_vehicle_queryset_for_user, user_can_access_vehicle
@@ -46,3 +48,19 @@ class AdminDashboardView(APIView):
 
     def get(self, request):
         return Response(build_admin_dashboard())
+
+
+class FleetAlertsView(APIView):
+    permission_classes = [IsAuthenticated, IsCompanyMember]
+
+    def get(self, request):
+        active_only = request.query_params.get("active", "true").lower() != "false"
+        return Response(build_fleet_alerts(request.user, active_only=active_only))
+
+
+class FleetDtcView(APIView):
+    permission_classes = [IsAuthenticated, IsCompanyMember]
+
+    def get(self, request):
+        active_only = request.query_params.get("active", "true").lower() != "false"
+        return Response(build_fleet_dtc(request.user, active_only=active_only))

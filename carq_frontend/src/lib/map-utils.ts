@@ -1,7 +1,7 @@
 import type { Theme } from "@/lib/theme-store";
 import type { TelemetryData, Vehicle } from "@/lib/types";
 
-export const DEFAULT_MAP_CENTER: [number, number] = [106.917, 47.918];
+export const DEFAULT_MAP_CENTER: [number, number] = [106.91305881940522, 47.910678001750654];
 
 export const MAP_FOCUS_ZOOM = 18;
 export const MAP_TRACKING_ZOOM = 18;

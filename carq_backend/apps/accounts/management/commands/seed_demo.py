@@ -132,8 +132,8 @@ class Command(BaseCommand):
                 assign_driver_to_vehicle(vehicle, drivers[i % len(drivers)], company_admin)
 
             if scenario != "offline":
-                base_lat = 47.918 + (i * 0.008)
-                base_lng = 106.917 + (i * 0.006)
+                base_lat = 47.910678 + (i * 0.003)
+                base_lng = 106.913059 + (i * 0.004)
                 speed = 65 if scenario == "moving" else (0 if scenario in ("stopped", "idle") else 55)
                 rpm = 2400 if speed > 0 else (850 if scenario == "idle" else 0)
                 coolant = 108 if scenario == "alert" else 88

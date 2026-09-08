@@ -149,30 +149,136 @@ export function coordsFromTelemetry(points: TelemetryData[]): [number, number][]
   return coords;
 }
 
-export function statusColor(status: string): string {
-  if (status === "MOVING") return "#34d399";
-  if (status === "IDLE") return "#fbbf24";
-  if (status === "STOPPED") return "#71717a";
-  if (status === "ALERT") return "#f87171";
-  if (status === "OFFLINE") return "#52525b";
-  return "#22d3ee";
+export function lerpAngle(start: number, end: number, t: number): number {
+  let diff = (end - start) % 360;
+  if (diff < -180) diff += 360;
+  if (diff > 180) diff -= 360;
+  return start + diff * t;
 }
 
-export function vehicleMarkerHtml(plate: string, status: string, selected = false): string {
+export function lerpCoord(
+  a: [number, number],
+  b: [number, number],
+  t: number,
+): [number, number] {
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+}
+
+export function statusColor(status: string): string {
+  if (status === "MOVING") return "#10b981"; // Vibrant emerald
+  if (status === "IDLE") return "#f59e0b"; // Warm amber
+  if (status === "STOPPED") return "#71717a"; // Zinc
+  if (status === "ALERT") return "#ef4444"; // Rose/Red
+  if (status === "OFFLINE") return "#52525b"; // Dark grey
+  return "#06b6d4"; // Cyan
+}
+
+export interface VehicleMarkerOptions {
+  plate: string;
+  status: string;
+  selected?: boolean;
+  tracking?: boolean;
+  speed?: number | null;
+  heading?: number;
+  ignition?: boolean | null;
+}
+
+export function vehicleMarkerHtml(
+  plateOrOpts: string | VehicleMarkerOptions,
+  legacyStatus?: string,
+  legacySelected?: boolean,
+): string {
+  let plate = "";
+  let status = "STOPPED";
+  let selected = false;
+  let tracking = false;
+  let speed: number | null = null;
+  let heading = 0;
+  let ignition: boolean | null = null;
+
+  if (typeof plateOrOpts === "object") {
+    plate = plateOrOpts.plate;
+    status = plateOrOpts.status;
+    selected = !!plateOrOpts.selected;
+    tracking = !!plateOrOpts.tracking;
+    speed = plateOrOpts.speed ?? null;
+    heading = plateOrOpts.heading ?? 0;
+    ignition = plateOrOpts.ignition ?? null;
+  } else {
+    plate = plateOrOpts;
+    status = legacyStatus ?? "STOPPED";
+    selected = !!legacySelected;
+  }
+
+  const isEngaged = selected || tracking;
+  const isIgnitionOn = ignition === true || (ignition == null && (status === "MOVING" || status === "IDLE"));
   const color = statusColor(status);
-  const scale = selected ? 1.15 : 1;
+  const isMoving = (speed != null && speed >= 2) || status === "MOVING";
+  const speedText = speed != null && speed >= 1 ? `${Math.round(speed)}` : "";
+
+  // Headlight beam glow when engine is on
+  const headlightBeam = isIgnitionOn
+    ? `<path d="M10 5 L2 -16 L14 -18 L13 5 Z" fill="url(#hbeam)" opacity="0.35"/>
+       <path d="M24 5 L21 -18 L33 -16 L25 5 Z" fill="url(#hbeam)" opacity="0.35"/>`
+    : "";
+
   return `
-    <div style="display:flex;flex-direction:column;align-items:center;width:48px;transform:scale(${scale});">
-      <svg width="36" height="36" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="20" cy="20" r="18" fill="${color}" fill-opacity="0.25" stroke="${color}" stroke-width="2.5"/>
-        <path d="M20 8 L28 30 L20 25 L12 30 Z" fill="${color}" stroke="#0b0d10" stroke-width="1.2"/>
-      </svg>
-      <div style="
-        margin-top:2px;padding:1px 6px;border-radius:4px;
-        background:rgba(11,13,16,0.85);border:1px solid ${color}66;
-        font-family:ui-monospace,monospace;font-size:9px;font-weight:600;
-        color:${color};white-space:nowrap;max-width:72px;overflow:hidden;text-overflow:ellipsis;
-      ">${plate}</div>
+    <div class="car-marker-container ${isEngaged ? "engaged" : ""} ${isMoving ? "moving" : ""}">
+      ${isEngaged ? `<div class="marker-pulse-ring" style="border-color:${color};"></div>` : ""}
+
+      <!-- Rotatable Car Silhouette -->
+      <div class="car-silhouette-wrapper" style="transform: rotate(${Math.round(heading)}deg);">
+        <svg width="36" height="48" viewBox="0 0 36 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="car-svg">
+          <defs>
+            <linearGradient id="hbeam" x1="0" y1="1" x2="0" y2="0">
+              <stop offset="0%" stop-color="#ffffff" stop-opacity="0.8"/>
+              <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+            </linearGradient>
+            <radialGradient id="engGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="${color}" stop-opacity="0.6"/>
+              <stop offset="100%" stop-color="${color}" stop-opacity="0"/>
+            </radialGradient>
+          </defs>
+
+          ${headlightBeam}
+
+          <!-- Car Drop Shadow -->
+          <rect x="6" y="7" width="24" height="36" rx="7" fill="rgba(0,0,0,0.5)" filter="blur(2px)"/>
+
+          <!-- Main Chassis -->
+          <rect x="7" y="6" width="22" height="36" rx="6" fill="#0f1115" stroke="${color}" stroke-width="${isEngaged ? "2.5" : "1.8"}"/>
+
+          <!-- Engine Hood Glow if ON -->
+          ${isIgnitionOn ? `<ellipse cx="18" cy="14" rx="7" ry="5" fill="url(#engGlow)"/>` : ""}
+
+          <!-- Windshield (Front) -->
+          <path d="M10 16 H26 L24 22 H12 Z" fill="${color}" fill-opacity="${isEngaged ? "0.9" : "0.75"}"/>
+
+          <!-- Side Mirrors -->
+          <rect x="5" y="16" width="2" height="4" rx="1" fill="${color}"/>
+          <rect x="29" y="16" width="2" height="4" rx="1" fill="${color}"/>
+
+          <!-- Roof -->
+          <rect x="11.5" y="22" width="13" height="10" rx="2" fill="#1b1f26"/>
+
+          <!-- Rear Window -->
+          <path d="M12 33 H24 L25 36 H11 Z" fill="${color}" fill-opacity="0.5"/>
+
+          <!-- Directional Arrow / Headlight Bulbs -->
+          <circle cx="10.5" cy="7.5" r="1.5" fill="${isIgnitionOn ? "#ffffff" : color}"/>
+          <circle cx="25.5" cy="7.5" r="1.5" fill="${isIgnitionOn ? "#ffffff" : color}"/>
+          <path d="M18 8.5 L21.5 12.5 H14.5 Z" fill="${color}"/>
+        </svg>
+      </div>
+
+      <!-- Upright Horizontal Label Badge (Does not rotate with car heading) -->
+      <div class="car-marker-label" style="border-color: ${color}88;">
+        <div class="car-label-row">
+          <span class="car-ignition-dot ${isIgnitionOn ? "acc-on" : "acc-off"}" title="${isIgnitionOn ? "Мотор: Асаалттай (ACC ON)" : "Мотор: Унтраастай (ACC OFF)"}"></span>
+          <span class="car-plate-text">${plate}</span>
+          ${speedText ? `<span class="car-speed-badge">${speedText}<span class="unit">km/h</span></span>` : ""}
+        </div>
+      </div>
     </div>
   `;
 }

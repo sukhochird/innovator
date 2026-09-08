@@ -115,15 +115,10 @@ export function FleetCommandCenter({
   const handleSelect = useCallback(
     (id: number) => {
       setSelectedId(id);
-      const v = vehicles.find((x) => x.id === id);
-      const coords = v ? vehicleCoords(v) : null;
-      if (coords) {
-        mapRef.current?.focusAt(coords[0], coords[1]);
-      } else {
-        mapRef.current?.focusVehicle(id);
-      }
+      startTracking(id);
+      mapRef.current?.focusVehicle(id);
     },
-    [vehicles, setSelectedId],
+    [setSelectedId, startTracking],
   );
 
   const handleDrawComplete = useCallback(
@@ -337,20 +332,20 @@ export function FleetCommandCenter({
               followTracking={!!trackingId}
             />
 
-            {selectedVehicle && !trackingId && mapMode === "live" && (
-              <VehicleMapPopup
+            {selectedVehicle && mapMode === "live" && (
+              <VehicleTrackingPanel
                 vehicle={selectedVehicle}
-                onTrack={() => startTracking(selectedVehicle.id)}
+                isTracking={!!trackingId}
+                onStopTracking={() => stopTracking()}
+                onResumeTracking={() => startTracking(selectedVehicle.id)}
                 onHistory={() => {
                   setShowHistoryPanel(true);
-                  setSelectedId(selectedVehicle.id);
                 }}
-                onClose={() => setSelectedId(null)}
+                onClose={() => {
+                  stopTracking();
+                  setSelectedId(null);
+                }}
               />
-            )}
-
-            {trackingVehicle && mapMode === "live" && (
-              <VehicleTrackingPanel vehicle={trackingVehicle} onStop={stopTracking} />
             )}
 
             {showHistoryPanel && selectedVehicle && (

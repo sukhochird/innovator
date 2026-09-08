@@ -118,7 +118,7 @@ class TelemetryIngestionService:
         self._process_dtc(device, vehicle, data)
         self._check_alerts(vehicle, data)
         self._check_geofences(vehicle, data)
-        self._broadcast_telemetry(vehicle.id, current_state)
+        self._broadcast_telemetry(vehicle, current_state)
         return telemetry
 
     def _compute_status(self, data: NormalizedTelemetry, vehicle: Vehicle) -> str:
@@ -266,12 +266,11 @@ class TelemetryIngestionService:
             vehicle,
         )
 
-    def _broadcast_telemetry(self, vehicle_id: int, data: dict) -> None:
+    def _broadcast_telemetry(self, vehicle: Vehicle, data: dict) -> None:
         self._broadcast_event(
             "telemetry.update",
-            {"vehicle_id": vehicle_id, "timestamp": data.get("timestamp"), "data": data},
-            vehicle_id=vehicle_id,
-            company_id=None,
+            {"vehicle_id": vehicle.id, "timestamp": data.get("timestamp"), "data": data},
+            vehicle=vehicle,
         )
 
     def _broadcast_event(self, event_type: str, payload: dict, vehicle=None, vehicle_id=None, company_id=None) -> None:

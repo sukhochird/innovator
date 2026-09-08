@@ -12,6 +12,7 @@ import {
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
+import { Crosshair } from "lucide-react";
 import {
   computeCoordsBounds,
   computeFleetBounds,
@@ -19,6 +20,8 @@ import {
   getMapStyle,
   DEFAULT_MAP_CENTER,
   endMarkerHtml,
+  lerpAngle,
+  lerpCoord,
   MAP_DEFAULT_ZOOM,
   MAP_FIT_FLEET_MAX_ZOOM,
   MAP_FOCUS_ZOOM,
@@ -44,8 +47,9 @@ export type DrawMode = "CIRCLE" | "POLYGON" | "RECTANGLE" | null;
 
 export interface FleetMapHandle {
   fitFleet: () => void;
-  focusVehicle: (vehicleId: number) => void;
+  focusVehicle: (vehicleId: number, zoom?: number) => void;
   focusAt: (lng: number, lat: number, zoom?: number) => void;
+  resumeFollow: () => void;
 }
 
 interface FleetMapProps {
@@ -143,11 +147,28 @@ export const FleetMap = memo(
     const containerRef = useRef<HTMLDivElement>(null);
     const mapRef = useRef<MapInstance | null>(null);
     const markersRef = useRef<globalThis.Map<number, Marker>>(new globalThis.Map());
+    const markerKeysRef = useRef<globalThis.Map<number, string>>(new globalThis.Map());
+    const animStatesRef = useRef<
+      globalThis.Map<
+        number,
+        {
+          fromCoord: [number, number];
+          toCoord: [number, number];
+          currentCoord: [number, number];
+          fromHeading: number;
+          toHeading: number;
+          currentHeading: number;
+          startTime: number;
+          duration: number;
+        }
+      >
+    >(new globalThis.Map());
     const playbackMarkerRef = useRef<Marker | null>(null);
     const startMarkerRef = useRef<Marker | null>(null);
     const endMarkerRef = useRef<Marker | null>(null);
     const [mapReady, setMapReady] = useState(false);
     const [styleEpoch, setStyleEpoch] = useState(0);
+    const [isPausedFollow, setIsPausedFollow] = useState(false);
     const userMovedMap = useRef(false);
     const drawPointsRef = useRef<[number, number][]>([]);
     const drawStartRef = useRef<[number, number] | null>(null);
@@ -158,11 +179,12 @@ export const FleetMap = memo(
       const map = mapRef.current;
       if (!map) return;
       userMovedMap.current = false;
+      setIsPausedFollow(false);
       const go = () => {
         map.flyTo({
           center: [lng, lat],
           zoom,
-          duration: 400,
+          duration: 500,
           essential: true,
         });
       };
@@ -179,6 +201,7 @@ export const FleetMap = memo(
           const bounds = computeFleetBounds(focusPool);
           if (!bounds) return;
           userMovedMap.current = false;
+          setIsPausedFollow(false);
           const [[minLng, minLat], [maxLng, maxLat]] = bounds;
           if (minLng === maxLng && minLat === maxLat) {
             flyToVehicle(minLng, minLat, MAP_FOCUS_ZOOM);
@@ -190,16 +213,27 @@ export const FleetMap = memo(
             });
           }
         },
-        focusVehicle: (vehicleId: number) => {
+        focusVehicle: (vehicleId: number, zoom?: number) => {
+          const anim = animStatesRef.current.get(vehicleId);
           const v = focusPool.find((x) => x.id === vehicleId);
-          const coords = v ? vehicleCoords(v) : null;
-          if (coords) flyToVehicle(coords[0], coords[1], MAP_FOCUS_ZOOM);
+          const coords = anim?.currentCoord ?? (v ? vehicleCoords(v) : null);
+          if (coords) flyToVehicle(coords[0], coords[1], zoom ?? MAP_TRACKING_ZOOM);
         },
         focusAt: (lng: number, lat: number, zoom?: number) => {
-          flyToVehicle(lng, lat, zoom ?? MAP_FOCUS_ZOOM);
+          flyToVehicle(lng, lat, zoom ?? MAP_TRACKING_ZOOM);
+        },
+        resumeFollow: () => {
+          userMovedMap.current = false;
+          setIsPausedFollow(false);
+          const targetId = trackingId ?? selectedId;
+          if (!targetId) return;
+          const anim = animStatesRef.current.get(targetId);
+          const v = focusPool.find((x) => x.id === targetId);
+          const coords = anim?.currentCoord ?? (v ? vehicleCoords(v) : null);
+          if (coords) flyToVehicle(coords[0], coords[1], MAP_TRACKING_ZOOM);
         },
       }),
-      [focusPool, flyToVehicle],
+      [focusPool, flyToVehicle, trackingId, selectedId],
     );
 
     useEffect(() => {
@@ -215,6 +249,9 @@ export const FleetMap = memo(
       map.addControl(new AttributionControl({ compact: true }), "bottom-right");
       map.on("dragstart", () => {
         userMovedMap.current = true;
+        if (followTracking || trackingId || selectedId) {
+          setIsPausedFollow(true);
+        }
       });
       mapRef.current = map;
       map.on("load", () => {
@@ -224,6 +261,8 @@ export const FleetMap = memo(
       return () => {
         markersRef.current.forEach((m) => m.remove());
         markersRef.current.clear();
+        markerKeysRef.current.clear();
+        animStatesRef.current.clear();
         playbackMarkerRef.current?.remove();
         startMarkerRef.current?.remove();
         endMarkerRef.current?.remove();
@@ -248,19 +287,58 @@ export const FleetMap = memo(
       });
     }, [mapView, mapReady]);
 
+    // RequestAnimationFrame interpolation loop for all animated vehicles
     useEffect(() => {
-      if (!mapReady || !selectedId || followTracking || drawMode) return;
+      let reqId: number;
+      const loop = () => {
+        const now = performance.now();
+        animStatesRef.current.forEach((anim, id) => {
+          const elapsed = now - anim.startTime;
+          const progress = Math.min(1, elapsed / anim.duration);
+          // Ease-out cubic curve
+          const ease = 1 - Math.pow(1 - progress, 3);
+          anim.currentCoord = lerpCoord(anim.fromCoord, anim.toCoord, ease);
+          anim.currentHeading = lerpAngle(anim.fromHeading, anim.toHeading, ease);
+
+          const marker = markersRef.current.get(id);
+          if (marker) {
+            marker.setLngLat(anim.currentCoord);
+            const wrapper = marker.getElement().querySelector<HTMLElement>(".car-silhouette-wrapper");
+            if (wrapper) {
+              wrapper.style.transform = `rotate(${Math.round(anim.currentHeading)}deg)`;
+            }
+          }
+
+          // Smooth camera lock-follow for active tracking vehicle
+          const isTargetFollow = (followTracking && (trackingId === id || selectedId === id)) || trackingId === id;
+          if (isTargetFollow && !userMovedMap.current && mapRef.current) {
+            mapRef.current.setCenter(anim.currentCoord);
+          }
+        });
+
+        reqId = requestAnimationFrame(loop);
+      };
+
+      reqId = requestAnimationFrame(loop);
+      return () => cancelAnimationFrame(reqId);
+    }, [followTracking, trackingId, selectedId]);
+
+    useEffect(() => {
+      if (!mapReady || !selectedId || drawMode) return;
+      const anim = animStatesRef.current.get(selectedId);
       const v = focusPool.find((x) => x.id === selectedId);
-      const coords = v ? vehicleCoords(v) : null;
-      if (coords) flyToVehicle(coords[0], coords[1], MAP_FOCUS_ZOOM);
+      const coords = anim?.currentCoord ?? (v ? vehicleCoords(v) : null);
+      if (coords) flyToVehicle(coords[0], coords[1], MAP_TRACKING_ZOOM);
       // eslint-disable-next-line react-hooks/exhaustive-deps -- focus only when selection changes
-    }, [selectedId, mapReady, followTracking, drawMode, flyToVehicle]);
+    }, [selectedId, mapReady, drawMode, flyToVehicle]);
 
     const syncMarkers = useCallback(() => {
       const map = mapRef.current;
       if (!map || !mapReady) return;
 
+      const now = performance.now();
       const activeIds = new Set<number>();
+
       vehicles.forEach((v) => {
         const tel = v.current_telemetry;
         const lat = toNum(tel?.latitude);
@@ -273,36 +351,84 @@ export const FleetMap = memo(
         const isSelected = selectedId === v.id;
         const isTracking = trackingId === v.id;
         const heading = tel?.heading ?? 0;
+        const speed = tel?.speed ?? null;
+        const ignition = tel?.ignition ?? null;
+
+        // Manage animation state for smooth movement
+        let anim = animStatesRef.current.get(v.id);
+        if (!anim) {
+          anim = {
+            fromCoord: [lng, lat],
+            toCoord: [lng, lat],
+            currentCoord: [lng, lat],
+            fromHeading: heading,
+            toHeading: heading,
+            currentHeading: heading,
+            startTime: now,
+            duration: 1,
+          };
+          animStatesRef.current.set(v.id, anim);
+        } else {
+          const dist = Math.hypot(lng - anim.toCoord[0], lat - anim.toCoord[1]);
+          if (dist > 0.000001 || Math.abs(heading - anim.toHeading) > 0.5) {
+            anim.fromCoord = [...anim.currentCoord];
+            anim.toCoord = [lng, lat];
+            anim.fromHeading = anim.currentHeading;
+            anim.toHeading = heading;
+            anim.startTime = now;
+            anim.duration = 1800;
+          }
+        }
 
         let marker = markersRef.current.get(v.id);
         const handleMarkerClick = (e: MouseEvent) => {
           e.stopPropagation();
-          flyToVehicle(lng, lat, MAP_FOCUS_ZOOM);
+          userMovedMap.current = false;
+          setIsPausedFollow(false);
+          flyToVehicle(lng, lat, MAP_TRACKING_ZOOM);
           onSelect?.(v.id);
         };
 
+        const markerKey = `${v.plate_number}_${status}_${isSelected}_${isTracking}_${Math.round(speed ?? 0)}_${ignition}`;
+        const prevKey = markerKeysRef.current.get(v.id);
+
         if (marker) {
-          marker.setLngLat([lng, lat]);
-          marker.setRotation(isTracking || isSelected ? heading : 0);
-          const el = marker.getElement();
-          el.innerHTML = vehicleMarkerHtml(v.plate_number, status, isSelected || isTracking);
-          el.className = `fleet-marker ${isSelected ? "selected" : ""}`;
-          el.onclick = handleMarkerClick;
+          if (prevKey !== markerKey) {
+            const el = marker.getElement();
+            el.innerHTML = vehicleMarkerHtml({
+              plate: v.plate_number,
+              status,
+              selected: isSelected,
+              tracking: isTracking,
+              speed,
+              heading: anim.currentHeading,
+              ignition,
+            });
+            el.className = `fleet-marker ${isSelected ? "selected" : ""}`;
+            el.onclick = handleMarkerClick;
+            markerKeysRef.current.set(v.id, markerKey);
+          }
         } else {
           const el = document.createElement("div");
           el.className = `fleet-marker ${isSelected ? "selected" : ""}`;
-          el.innerHTML = vehicleMarkerHtml(v.plate_number, status, isSelected);
+          el.innerHTML = vehicleMarkerHtml({
+            plate: v.plate_number,
+            status,
+            selected: isSelected,
+            tracking: isTracking,
+            speed,
+            heading: anim.currentHeading,
+            ignition,
+          });
           el.onclick = handleMarkerClick;
           marker = new Marker({
             element: el,
-            anchor: "bottom",
-            rotationAlignment: "map",
-            pitchAlignment: "map",
+            anchor: "center",
           })
-            .setLngLat([lng, lat])
-            .setRotation(isTracking || isSelected ? heading : 0)
+            .setLngLat(anim.currentCoord)
             .addTo(map);
           markersRef.current.set(v.id, marker);
+          markerKeysRef.current.set(v.id, markerKey);
         }
       });
 
@@ -310,22 +436,11 @@ export const FleetMap = memo(
         if (!activeIds.has(id)) {
           marker.remove();
           markersRef.current.delete(id);
+          markerKeysRef.current.delete(id);
+          animStatesRef.current.delete(id);
         }
       });
-
-      if (followTracking && trackingId && !userMovedMap.current) {
-        const v = vehicles.find((x) => x.id === trackingId);
-        const lat = toNum(v?.current_telemetry?.latitude);
-        const lng = toNum(v?.current_telemetry?.longitude);
-        if (lat != null && lng != null) {
-          map.easeTo({
-            center: [lng, lat],
-            zoom: Math.max(map.getZoom(), MAP_TRACKING_ZOOM),
-            duration: 400,
-          });
-        }
-      }
-    }, [vehicles, selectedId, trackingId, onSelect, mapReady, mode, followTracking, flyToVehicle]);
+    }, [vehicles, selectedId, trackingId, onSelect, mapReady, mode, flyToVehicle]);
 
     useEffect(() => {
       syncMarkers();
@@ -577,12 +692,38 @@ export const FleetMap = memo(
       };
     }, [drawMode, mapReady, onDrawComplete]);
 
+    const targetFollowVehicle = focusPool.find((v) => v.id === (trackingId ?? selectedId));
+
     return (
-      <div
-        ref={containerRef}
-        className="fleet-map w-full rounded-lg border border-[var(--dash-border)]"
-        style={{ height, minHeight: height === "100%" ? "480px" : undefined }}
-      />
+      <div className="relative h-full w-full overflow-hidden rounded-lg">
+        <div
+          ref={containerRef}
+          className="fleet-map h-full w-full rounded-lg border border-[var(--dash-border)]"
+          style={{ height, minHeight: height === "100%" ? "480px" : undefined }}
+        />
+
+        {isPausedFollow && targetFollowVehicle && (
+          <div className="pointer-events-auto absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+            <button
+              type="button"
+              onClick={() => {
+                userMovedMap.current = false;
+                setIsPausedFollow(false);
+                const targetId = trackingId ?? selectedId;
+                if (targetId) {
+                  const anim = animStatesRef.current.get(targetId);
+                  const coords = anim?.currentCoord ?? vehicleCoords(targetFollowVehicle);
+                  if (coords) flyToVehicle(coords[0], coords[1], MAP_TRACKING_ZOOM);
+                }
+              }}
+              className="flex items-center gap-2 rounded-full border border-emerald-500/60 bg-[var(--surface-deep)]/95 px-4 py-2 text-xs font-semibold text-emerald-400 shadow-2xl backdrop-blur-md hover:bg-emerald-500/20 transition cursor-pointer"
+            >
+              <Crosshair className="h-3.5 w-3.5 animate-spin" style={{ animationDuration: "3s" }} />
+              <span>{targetFollowVehicle.plate_number} дээр дахин төвлөрөх</span>
+            </button>
+          </div>
+        )}
+      </div>
     );
   }),
 );

@@ -119,33 +119,129 @@ body {
 
 .fleet-map .fleet-marker {
   cursor: pointer;
-  transition: transform 0.15s ease;
+  user-select: none;
 }
 
 .fleet-map .fleet-marker.selected {
-  z-index: 10;
+  z-index: 25 !important;
 }
 
-.fleet-map .marker-dot {
-  width: 14px;
-  height: 14px;
+.car-marker-container {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 72px;
+  pointer-events: auto;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.car-marker-container.engaged {
+  transform: scale(1.15);
+}
+
+.car-silhouette-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 52px;
+  transform-origin: 50% 50%;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.car-svg {
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.65));
+}
+
+.marker-pulse-ring {
+  position: absolute;
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
-  border: 2px solid white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  border: 2px solid #10b981;
+  animation: radarPulse 2s cubic-bezier(0, 0.2, 0.8, 1) infinite;
+  pointer-events: none;
 }
 
-.fleet-map .marker-dot.moving { background: #34d399; }
-.fleet-map .marker-dot.idle { background: #fbbf24; }
-.fleet-map .marker-dot.stopped { background: #71717a; }
-.fleet-map .marker-dot.offline { background: #52525b; }
-.fleet-map .marker-dot.alert { background: #ef4444; }
-.fleet-map .marker-dot.online { background: #60a5fa; }
+@keyframes radarPulse {
+  0% {
+    transform: translateX(-50%) scale(0.6);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) scale(1.8);
+    opacity: 0;
+  }
+}
 
-.fleet-map .fleet-marker.selected .marker-dot {
-  width: 18px;
-  height: 18px;
-  border-color: #34d399;
-  box-shadow: 0 0 12px rgba(52, 211, 153, 0.6);
+.car-marker-label {
+  margin-top: 1px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(11, 13, 16, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.car-label-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.car-ignition-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.car-ignition-dot.acc-on {
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  animation: accGlow 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes accGlow {
+  0% { opacity: 0.7; box-shadow: 0 0 4px #10b981; }
+  100% { opacity: 1; box-shadow: 0 0 8px #10b981, 0 0 12px #10b98188; }
+}
+
+.car-ignition-dot.acc-off {
+  background: #71717a;
+}
+
+.car-plate-text {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #f4f4f5;
+}
+
+.car-speed-badge {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 9px;
+  font-weight: 600;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 0 3px;
+  border-radius: 3px;
+  border: 0.5px solid rgba(16, 185, 129, 0.3);
+}
+
+.car-speed-badge .unit {
+  font-size: 7px;
+  color: #a1a1aa;
+  margin-left: 1px;
 }
 
 input, select, button {

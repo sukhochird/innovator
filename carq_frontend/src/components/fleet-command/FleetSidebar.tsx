@@ -2,7 +2,7 @@
 
 import { memo, useMemo } from "react";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Compass, Power, PowerOff, Search } from "lucide-react";
 
 import { StatusBadge } from "@/components/dashboard/StatCard";
 import type { FleetStatusFilter, Vehicle } from "@/lib/types";
@@ -114,34 +114,77 @@ const VehicleListItem = memo(function VehicleListItem({
 }) {
   const tel = vehicle.current_telemetry;
   const status = tel?.status ?? vehicle.status;
+  const isIgnitionOn =
+    tel?.ignition === true ||
+    (tel?.ignition == null && (status === "MOVING" || status === "IDLE"));
 
   return (
     <button
       type="button"
       onClick={onSelect}
       className={cn(
-        "mb-1 w-full rounded-lg border p-3 text-left transition",
+        "mb-1.5 w-full rounded-xl border p-3 text-left transition-all cursor-pointer relative",
         selected
-          ? "border-emerald-500/40 bg-emerald-500/10"
-          : "border-transparent hover:border-[var(--dash-border)] hover:bg-[var(--dash-hover)]",
+          ? "border-emerald-500/60 bg-emerald-500/10 shadow-[0_0_15px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/30"
+          : "border-[var(--dash-border)]/60 bg-[var(--surface-deep)]/40 hover:border-[var(--dash-border)] hover:bg-[var(--dash-hover)]",
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate font-medium text-[var(--dash-text)]">
-            {vehicle.make} {vehicle.model}
-          </p>
-          <p className="font-mono text-xs text-cyan-400/90">{vehicle.plate_number}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="truncate font-medium text-[var(--dash-text)] text-sm">
+              {vehicle.make} {vehicle.model}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <span className="font-mono text-xs font-semibold text-cyan-400/90">{vehicle.plate_number}</span>
+            {selected && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-1.5 py-0.2 text-[9px] font-semibold text-emerald-400 border border-emerald-500/40 animate-pulse">
+                <Compass className="h-2.5 w-2.5" />
+                Дагаж байна
+              </span>
+            )}
+          </div>
         </div>
         <StatusBadge status={status} />
       </div>
-      <div className="mt-2 flex items-center justify-between text-xs">
-        <span className="font-mono tabular-nums text-emerald-400">
-          {tel?.speed != null ? `${Math.round(tel.speed)} km/h` : "—"}
-        </span>
-        <span className="text-[var(--dash-muted)]">
-          {formatSecondsAgo(tel?.timestamp)}
-        </span>
+
+      <div className="mt-2.5 flex items-center justify-between border-t border-[var(--dash-border)]/40 pt-2 text-xs">
+        {/* Ignition status */}
+        <div className="flex items-center gap-1.5">
+          <span
+            className={cn(
+              "inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium border",
+              isIgnitionOn
+                ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-400"
+                : "bg-zinc-800/80 border-zinc-700/80 text-zinc-400",
+            )}
+            title={isIgnitionOn ? "Мотор асаалттай (ACC ON)" : "Мотор унтраастай (ACC OFF)"}
+          >
+            {isIgnitionOn ? (
+              <Power className="h-2.5 w-2.5 animate-pulse text-emerald-400" />
+            ) : (
+              <PowerOff className="h-2.5 w-2.5 text-zinc-500" />
+            )}
+            {isIgnitionOn ? "Асаалттай" : "Унтраастай"}
+          </span>
+
+          {tel?.battery_voltage != null && (
+            <span className="text-[10px] font-mono text-[var(--dash-muted)]">
+              {tel.battery_voltage.toFixed(1)}V
+            </span>
+          )}
+        </div>
+
+        {/* Speed & timestamp */}
+        <div className="flex items-center gap-2">
+          <span className="font-mono tabular-nums font-semibold text-emerald-400">
+            {tel?.speed != null && tel.speed >= 1 ? `${Math.round(tel.speed)} km/h` : "0 km/h"}
+          </span>
+          <span className="text-[10px] text-[var(--dash-muted)]">
+            {formatSecondsAgo(tel?.timestamp)}
+          </span>
+        </div>
       </div>
     </button>
   );

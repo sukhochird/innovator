@@ -31,9 +31,7 @@ DEMO_DRIVERS = [
 
 # JT808 simulator.py terminal phone IDs -> CARQ device mapping
 JT808_TERMINAL_PHONES = [
-    ("013800138000", 0),  # CARQ-OBD-000001
-    ("013800138001", 1),  # CARQ-OBD-000002
-    ("013800138002", 2),  # CARQ-OBD-000003
+    (f"0138001380{i:02d}", i) for i in range(10)
 ]
 
 

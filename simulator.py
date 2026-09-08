@@ -5,7 +5,7 @@ JT808 Hardware Device & OBD2 Scanner Simulator (Python 3)
 Simulates physical GPS/OBD2 terminals sending JT808 0x0200 packets.
 Vehicles orbit Ulaanbaatar city center leaving a visible GPS track on the fleet map.
 
-Default map center (CARQ): 47.910678°N, 106.913059°E
+Default map center (CARQ): 47.921483°N, 106.916858°E
 """
 
 import socket
@@ -22,8 +22,8 @@ INTERVAL = float(os.environ.get("INTERVAL", "3"))
 DEVICE_PHONE = "013800138000"
 
 # Ulaanbaatar city center — matches frontend DEFAULT_MAP_CENTER
-UB_CENTER_LAT = float(os.environ.get("UB_CENTER_LAT", "47.910678001750654"))
-UB_CENTER_LNG = float(os.environ.get("UB_CENTER_LNG", "106.91305881940522"))
+UB_CENTER_LAT = float(os.environ.get("UB_CENTER_LAT", "47.921482718244036"))
+UB_CENTER_LNG = float(os.environ.get("UB_CENTER_LNG", "106.91685752514958"))
 
 
 def string_to_bcd(phone_str):

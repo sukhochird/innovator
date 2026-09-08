@@ -3,11 +3,11 @@ import type { StyleSpecification } from "maplibre-gl";
 import type { Theme } from "@/lib/theme-store";
 import type { TelemetryData, Vehicle } from "@/lib/types";
 
-export const DEFAULT_MAP_CENTER: [number, number] = [106.91305881940522, 47.910678001750654];
+export const DEFAULT_MAP_CENTER: [number, number] = [106.91685752514958, 47.921482718244036];
 
 export const MAP_FOCUS_ZOOM = 18;
 export const MAP_TRACKING_ZOOM = 18;
-export const MAP_DEFAULT_ZOOM = 12;
+export const MAP_DEFAULT_ZOOM = 13;
 export const MAP_FIT_FLEET_MAX_ZOOM = 16;
 
 export type MapViewId = "standard" | "dark" | "satellite";
@@ -26,8 +26,9 @@ export const MAP_VIEWS: MapViewConfig[] = [
   {
     id: "standard",
     label: "Standard",
-    styleUrl: "https://tiles.openfreemap.org/styles/liberty",
-    attribution: "© OpenFreeMap © OpenStreetMap",
+    // Inline raster — reliable, no API key (OSM data via osm.de)
+    tiles: "https://tile.openstreetmap.de/{z}/{x}/{y}.png",
+    attribution: "© OpenStreetMap contributors",
   },
   {
     id: "dark",
@@ -43,8 +44,8 @@ export const MAP_VIEWS: MapViewConfig[] = [
   },
 ];
 
-export function mapViewForTheme(theme: Theme): MapViewId {
-  return theme === "dark" ? "dark" : "standard";
+export function mapViewForTheme(_theme: Theme): MapViewId {
+  return "standard";
 }
 
 export function getMapView(id: MapViewId): MapViewConfig {
@@ -72,7 +73,7 @@ export function getMapStyle(viewId: MapViewId): string | StyleSpecification {
   const view = getMapView(viewId);
   if (view.styleUrl) return view.styleUrl;
   if (view.tiles) return createRasterStyle(view.tiles, view.attribution);
-  return MAP_VIEWS[0].styleUrl!;
+  return createRasterStyle(MAP_VIEWS[0].tiles!, MAP_VIEWS[0].attribution);
 }
 
 /** @deprecated use getMapStyle */

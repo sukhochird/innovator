@@ -151,7 +151,6 @@ export const FleetMap = memo(
     const userMovedMap = useRef(false);
     const drawPointsRef = useRef<[number, number][]>([]);
     const drawStartRef = useRef<[number, number] | null>(null);
-    const didInitialFit = useRef(false);
     const prevMapView = useRef(mapView);
     const focusPool = allVehicles ?? vehicles;
 
@@ -218,7 +217,10 @@ export const FleetMap = memo(
         userMovedMap.current = true;
       });
       mapRef.current = map;
-      map.on("load", () => setMapReady(true));
+      map.on("load", () => {
+        map.jumpTo({ center: DEFAULT_MAP_CENTER, zoom: MAP_DEFAULT_ZOOM });
+        setMapReady(true);
+      });
       return () => {
         markersRef.current.forEach((m) => m.remove());
         markersRef.current.clear();
@@ -228,7 +230,6 @@ export const FleetMap = memo(
         map.remove();
         mapRef.current = null;
         setMapReady(false);
-        didInitialFit.current = false;
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps -- init once
     }, []);
@@ -246,20 +247,6 @@ export const FleetMap = memo(
         setStyleEpoch((n) => n + 1);
       });
     }, [mapView, mapReady]);
-
-    useEffect(() => {
-      const map = mapRef.current;
-      if (!map || !mapReady || didInitialFit.current || vehicles.length === 0) return;
-      const bounds = computeFleetBounds(vehicles);
-      if (!bounds) return;
-      didInitialFit.current = true;
-      const [[minLng, minLat], [maxLng, maxLat]] = bounds;
-      if (minLng === maxLng && minLat === maxLat) {
-        flyToVehicle(minLng, minLat, MAP_FOCUS_ZOOM);
-      } else {
-        map.fitBounds(bounds, { padding: 80, maxZoom: MAP_FIT_FLEET_MAX_ZOOM, duration: 900 });
-      }
-    }, [mapReady, vehicles, flyToVehicle]);
 
     useEffect(() => {
       if (!mapReady || !selectedId || followTracking || drawMode) return;

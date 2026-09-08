@@ -16,6 +16,35 @@ interface VehicleStatusPanelProps {
   embedded?: boolean;
 }
 
+type StatusState = "good" | "bad" | "warn";
+
+const STATE_STYLES: Record<
+  StatusState,
+  { card: string; icon: string; dot: string; label: string; detail: string }
+> = {
+  good: {
+    card: "border-emerald-500/35 bg-emerald-500/[0.06]",
+    icon: "text-emerald-400",
+    dot: "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.55)]",
+    label: "text-emerald-400",
+    detail: "text-[var(--dash-text-secondary)]",
+  },
+  bad: {
+    card: "border-red-500/35 bg-red-500/[0.06]",
+    icon: "text-red-400",
+    dot: "bg-red-400 shadow-[0_0_6px_rgba(248,113,113,0.45)]",
+    label: "text-red-400",
+    detail: "text-[var(--dash-muted)]",
+  },
+  warn: {
+    card: "border-amber-500/35 bg-amber-500/[0.06]",
+    icon: "text-amber-400",
+    dot: "bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.45)]",
+    label: "text-amber-400",
+    detail: "text-[var(--dash-text-secondary)]",
+  },
+};
+
 export const VehicleStatusPanel = memo(function VehicleStatusPanel({
   vehicle,
   current,
@@ -27,36 +56,41 @@ export const VehicleStatusPanel = memo(function VehicleStatusPanel({
   const gpsActive = current?.latitude != null && current?.longitude != null;
   const deviceConnected = connectionState === "live" && status !== "OFFLINE";
 
+  const lastUpdateState: StatusState =
+    connectionState === "live" ? "good" : connectionState === "reconnecting" ? "warn" : "bad";
+
   const rows = [
     {
       icon: Radio,
       title: "Ignition",
-      lines: [ignitionOn ? "ON" : "OFF"],
-      active: ignitionOn,
+      statusLabel: ignitionOn ? "ON" : "OFF",
+      detail: undefined,
+      state: (ignitionOn ? "good" : "bad") as StatusState,
+      pulse: ignitionOn,
     },
     {
       icon: MapPin,
       title: "GPS",
-      lines: [
-        gpsActive ? "● Active" : "○ Unavailable",
-        formatCoord(current?.latitude, current?.longitude),
-      ],
-      active: gpsActive,
+      statusLabel: gpsActive ? "Active" : "Unavailable",
+      detail: formatCoord(current?.latitude, current?.longitude),
+      state: (gpsActive ? "good" : "bad") as StatusState,
+      pulse: gpsActive,
     },
     {
       icon: Cpu,
       title: "Device",
-      lines: [
-        deviceConnected ? "● Connected" : "○ Disconnected",
-        vehicle.device_serial ?? "—",
-      ],
-      active: deviceConnected,
+      statusLabel: deviceConnected ? "Connected" : "Disconnected",
+      detail: vehicle.device_serial ?? "—",
+      state: (deviceConnected ? "good" : "bad") as StatusState,
+      pulse: deviceConnected,
     },
     {
       icon: Timer,
       title: "Last Update",
-      lines: [formatSecondsAgo(current?.timestamp)],
-      active: connectionState === "live",
+      statusLabel: formatSecondsAgo(current?.timestamp),
+      detail: undefined,
+      state: lastUpdateState,
+      pulse: connectionState === "live",
     },
   ];
 
@@ -76,44 +110,59 @@ export const VehicleStatusPanel = memo(function VehicleStatusPanel({
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {rows.map((row) => (
-          <StatusRow key={row.title} {...row} />
+          <StatusCard key={row.title} {...row} />
         ))}
       </div>
     </div>
   );
 });
 
-function StatusRow({
+function StatusCard({
   icon: Icon,
   title,
-  lines,
-  active,
+  statusLabel,
+  detail,
+  state,
+  pulse,
 }: {
   icon: typeof Radio;
   title: string;
-  lines: (string | undefined)[];
-  active: boolean;
+  statusLabel: string;
+  detail?: string;
+  state: StatusState;
+  pulse: boolean;
 }) {
+  const styles = STATE_STYLES[state];
+
   return (
-    <div className="min-w-0">
-      <div className="flex items-center gap-1.5 text-[var(--dash-muted)]">
-        <Icon className="h-3 w-3 shrink-0" aria-hidden />
-        <span className="text-[10px] font-medium uppercase tracking-wider">{title}</span>
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-2 rounded-xl border px-3 py-2.5 transition-colors",
+        styles.card,
+      )}
+    >
+      <div className="flex items-center gap-1.5">
+        <Icon className={cn("h-3.5 w-3.5 shrink-0", styles.icon)} aria-hidden />
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--dash-muted)]">
+          {title}
+        </span>
       </div>
-      <div className="mt-1 space-y-0.5 pl-[18px]">
-        {lines.filter(Boolean).map((line) => (
-          <p
-            key={line}
-            className={cn(
-              "truncate text-xs",
-              active && line?.startsWith("●") ? "text-[var(--dash-text-secondary)]" : "text-[var(--dash-muted)]",
-              line?.startsWith("●") && !active && "text-[var(--dash-muted)]",
-            )}
-          >
-            {line}
-          </p>
-        ))}
+
+      <div className="flex items-center gap-2">
+        <span
+          className={cn(
+            "h-2 w-2 shrink-0 rounded-full",
+            styles.dot,
+            pulse && "animate-pulse",
+          )}
+          aria-hidden
+        />
+        <span className={cn("text-sm font-semibold leading-none", styles.label)}>{statusLabel}</span>
       </div>
+
+      {detail ? (
+        <p className={cn("truncate pl-4 font-mono text-[11px] tabular-nums", styles.detail)}>{detail}</p>
+      ) : null}
     </div>
   );
 }

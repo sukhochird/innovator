@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,6 +53,79 @@ function vehicleHealthPct(v: Vehicle): number {
   return Math.max(10, Math.min(100, score));
 }
 
+function filterVehicles(
+  vehicles: Vehicle[],
+  filter: StatusFilter,
+  search: string,
+): Vehicle[] {
+  let list = vehicles;
+  if (filter === "NO_DEVICE") {
+    list = list.filter((v) => !v.device_serial);
+  } else if (filter !== "ALL") {
+    list = list.filter((v) => (v.current_telemetry?.status ?? v.status) === filter);
+  }
+  const q = search.trim().toLowerCase();
+  if (q) {
+    list = list.filter(
+      (v) =>
+        v.plate_number.toLowerCase().includes(q) ||
+        v.vin.toLowerCase().includes(q) ||
+        v.nickname.toLowerCase().includes(q) ||
+        `${v.make} ${v.model}`.toLowerCase().includes(q) ||
+        (v.driver_name ?? "").toLowerCase().includes(q) ||
+        (v.device_serial ?? "").toLowerCase().includes(q),
+    );
+  }
+  return list;
+}
+
+function sortVehicles(
+  list: Vehicle[],
+  sortBy: "plate" | "status" | "speed" | "updated",
+): Vehicle[] {
+  return [...list].sort((a, b) => {
+    if (sortBy === "plate") return a.plate_number.localeCompare(b.plate_number);
+    if (sortBy === "status") {
+      return (a.current_telemetry?.status ?? a.status).localeCompare(
+        b.current_telemetry?.status ?? b.status,
+      );
+    }
+    if (sortBy === "speed") {
+      return (b.current_telemetry?.speed ?? -1) - (a.current_telemetry?.speed ?? -1);
+    }
+    const ta = a.current_telemetry?.timestamp ?? "";
+    const tb = b.current_telemetry?.timestamp ?? "";
+    return tb.localeCompare(ta) || a.plate_number.localeCompare(b.plate_number);
+  });
+}
+
+function vehicleMembershipKey(vehicles: Vehicle[]): string {
+  return vehicles
+    .map((v) => v.id)
+    .sort((a, b) => a - b)
+    .join(",");
+}
+
+function vehiclesCardPropsEqual(prev: { vehicle: Vehicle }, next: { vehicle: Vehicle }): boolean {
+  const a = prev.vehicle;
+  const b = next.vehicle;
+  if (a.id !== b.id) return false;
+  const ta = a.current_telemetry;
+  const tb = b.current_telemetry;
+  return (
+    (ta?.status ?? a.status) === (tb?.status ?? b.status) &&
+    ta?.speed === tb?.speed &&
+    ta?.coolant_temperature === tb?.coolant_temperature &&
+    ta?.battery_voltage === tb?.battery_voltage &&
+    ta?.timestamp === tb?.timestamp &&
+    a.device_serial === b.device_serial &&
+    a.driver_name === b.driver_name &&
+    a.plate_number === b.plate_number &&
+    a.make === b.make &&
+    a.model === b.model
+  );
+}
+
 export function VehiclesHub() {
   const user = useAuthStore((s) => s.user);
   const router = useRouter();
@@ -60,13 +133,13 @@ export function VehiclesHub() {
   const [view, setView] = useState<ViewMode>("grid");
   const [filter, setFilter] = useState<StatusFilter>("ALL");
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState<"plate" | "status" | "speed" | "updated">("updated");
+  const [sortBy, setSortBy] = useState<"plate" | "status" | "speed" | "updated">("plate");
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: VEHICLES_QUERY_KEY,
     queryFn: () =>
       apiFetch<PaginatedResponse<Vehicle> | Vehicle[]>("/api/vehicles/?page_size=200"),
-    refetchInterval: 30_000,
+    staleTime: 60_000,
   });
 
   const vehicles = useMemo(() => unwrapVehicles(data), [data]);
@@ -111,41 +184,33 @@ export function VehiclesHub() {
 
   const insight = useMemo(() => generateVehiclesInsight(vehicles), [vehicles]);
 
-  const filtered = useMemo(() => {
-    let list = vehicles;
-    if (filter === "NO_DEVICE") {
-      list = list.filter((v) => !v.device_serial);
-    } else if (filter !== "ALL") {
-      list = list.filter((v) => (v.current_telemetry?.status ?? v.status) === filter);
-    }
-    const q = search.trim().toLowerCase();
-    if (q) {
-      list = list.filter(
-        (v) =>
-          v.plate_number.toLowerCase().includes(q) ||
-          v.vin.toLowerCase().includes(q) ||
-          v.nickname.toLowerCase().includes(q) ||
-          `${v.make} ${v.model}`.toLowerCase().includes(q) ||
-          (v.driver_name ?? "").toLowerCase().includes(q) ||
-          (v.device_serial ?? "").toLowerCase().includes(q),
-      );
-    }
+  const membershipKey = vehicleMembershipKey(vehicles);
+  const orderKey = `${membershipKey}|${filter}|${search}|${sortBy}`;
+  const orderKeyRef = useRef("");
+  const orderedIdsRef = useRef<number[]>([]);
 
-    return [...list].sort((a, b) => {
-      if (sortBy === "plate") return a.plate_number.localeCompare(b.plate_number);
-      if (sortBy === "status") {
-        return (a.current_telemetry?.status ?? a.status).localeCompare(
-          b.current_telemetry?.status ?? b.status,
-        );
-      }
-      if (sortBy === "speed") {
-        return (b.current_telemetry?.speed ?? -1) - (a.current_telemetry?.speed ?? -1);
-      }
-      const ta = a.current_telemetry?.timestamp ?? "";
-      const tb = b.current_telemetry?.timestamp ?? "";
-      return tb.localeCompare(ta);
-    });
-  }, [vehicles, filter, search, sortBy]);
+  if (orderKey !== orderKeyRef.current) {
+    orderKeyRef.current = orderKey;
+    orderedIdsRef.current = sortVehicles(filterVehicles(vehicles, filter, search), sortBy).map(
+      (v) => v.id,
+    );
+  }
+
+  const vehicleById = useMemo(() => {
+    const map = new Map<number, Vehicle>();
+    for (const v of vehicles) map.set(v.id, v);
+    return map;
+  }, [vehicles]);
+
+  const orderedVehicles = useMemo(() => {
+    const ids = orderedIdsRef.current;
+    const list: Vehicle[] = [];
+    for (const id of ids) {
+      const v = vehicleById.get(id);
+      if (v) list.push(v);
+    }
+    return list;
+  }, [vehicleById, orderKey]);
 
   if (isError) {
     return (
@@ -244,18 +309,18 @@ export function VehiclesHub() {
             <div key={i} className="h-52 animate-pulse rounded-xl bg-[var(--skeleton)]" />
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : orderedVehicles.length === 0 ? (
         <EmptyState filter={filter} hasSearch={!!search.trim()} />
       ) : view === "table" ? (
-        <FleetTable vehicles={filtered} onVehicleClick={(id) => router.push(`/vehicle/${id}`)} />
+        <FleetTable vehicles={orderedVehicles} onVehicleClick={(id) => router.push(`/vehicle/${id}`)} />
       ) : view === "grid" ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((v) => (
+          {orderedVehicles.map((v) => (
             <VehicleCard key={v.id} vehicle={v} />
           ))}
         </div>
       ) : (
-        <VehicleList vehicles={filtered} />
+        <VehicleList vehicles={orderedVehicles} />
       )}
     </div>
   );
@@ -269,7 +334,7 @@ const VehicleCard = memo(function VehicleCard({ vehicle }: { vehicle: Vehicle })
   return (
     <Link
       href={`/vehicle/${vehicle.id}`}
-      className="group rounded-xl border border-[var(--dash-border)] bg-[var(--surface-elevated)] p-4 transition hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/5"
+      className="group flex min-h-[272px] flex-col rounded-xl border border-[var(--dash-border)] bg-[var(--surface-elevated)] p-4 transition-colors hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-500/5"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-3">
@@ -303,7 +368,7 @@ const VehicleCard = memo(function VehicleCard({ vehicle }: { vehicle: Vehicle })
         <div className="h-1.5 overflow-hidden rounded-full bg-[var(--surface-deep)]">
           <div
             className={cn(
-              "h-full rounded-full transition-all",
+              "h-full rounded-full",
               health >= 70 ? "bg-emerald-500" : health >= 45 ? "bg-amber-500" : "bg-red-500",
             )}
             style={{ width: `${health}%` }}
@@ -311,7 +376,7 @@ const VehicleCard = memo(function VehicleCard({ vehicle }: { vehicle: Vehicle })
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-2 font-mono text-xs tabular-nums text-[var(--dash-text-secondary)]">
+      <div className="mt-auto grid grid-cols-2 gap-2 font-mono text-xs tabular-nums text-[var(--dash-text-secondary)]">
         <Metric icon={Gauge} label="Speed" value={tel?.speed != null ? `${Math.round(tel.speed)} km/h` : "—"} />
         <Metric icon={Thermometer} label="Coolant" value={tel?.coolant_temperature != null ? `${Math.round(tel.coolant_temperature)}°C` : "—"} />
         <Metric icon={Battery} label="Battery" value={tel?.battery_voltage != null ? `${tel.battery_voltage.toFixed(1)}V` : "—"} />
@@ -327,7 +392,7 @@ const VehicleCard = memo(function VehicleCard({ vehicle }: { vehicle: Vehicle })
       </div>
     </Link>
   );
-});
+}, vehiclesCardPropsEqual);
 
 const VehicleList = memo(function VehicleList({ vehicles }: { vehicles: Vehicle[] }) {
   return (
